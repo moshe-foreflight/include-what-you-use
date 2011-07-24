@@ -28,9 +28,9 @@
 #include "iwyu_port.h"  // for CHECK_
 #include "iwyu_stl_util.h"
 #include "iwyu_use_flags.h"
-
-// TODO: Clean out pragmas as IWYU improves.
-// IWYU pragma: no_include "clang/Basic/CustomizableOptional.h"
+#include "clang/AST/Decl.h"
+#include "clang/Basic/SourceLocation.h"
+#include "clang/Lex/PreprocessingRecord.h"
 
 namespace clang {
 class ElaboratedTypeLoc;
@@ -151,9 +151,9 @@ class OneUse {
 class OneIncludeOrForwardDeclareLine {
  public:
   explicit OneIncludeOrForwardDeclareLine(const clang::NamedDecl* fwd_decl);
-  explicit OneIncludeOrForwardDeclareLine(clang::ElaboratedTypeLoc);
-  OneIncludeOrForwardDeclareLine(clang::OptionalFileEntryRef included_file,
-                                 const string& quoted_include, int linenum);
+  OneIncludeOrForwardDeclareLine(const clang::FileEntry* included_file,
+                                 const string& quoted_include, int linenum,
+                                 clang::InclusionDirective::InclusionKind kind);
 
   const string& line() const {
     return line_;
@@ -272,8 +272,9 @@ class IwyuFileInfo {
   // Use these to register an iwyu declaration: either an #include,
   // a forward-declaration or a using-declaration.
 
-  void AddInclude(clang::OptionalFileEntryRef includee,
-                  const string& quoted_includee, int linenumber);
+  void AddInclude(const clang::FileEntry* includee,
+                  const string& quoted_includee, int linenumber,
+                  clang::InclusionDirective::InclusionKind kind);
   // definitely_keep_fwd_decl tells us that we should never suggest
   // the fwd-decl be removed, even if we don't see any uses of it.
   void AddForwardDeclare(const clang::NamedDecl* fwd_decl,

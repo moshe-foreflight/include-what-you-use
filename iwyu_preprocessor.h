@@ -69,6 +69,8 @@
 #include "clang/Basic/FileEntry.h"
 #include "clang/Basic/SourceLocation.h"
 #include "clang/Basic/SourceManager.h"
+#include "clang/Lex/Preprocessor.h"
+#include "clang/Lex/PreprocessingRecord.h"
 #include "clang/Lex/PPCallbacks.h"
 #include "clang/Lex/Preprocessor.h"
 #include "iwyu_output.h"
@@ -95,8 +97,10 @@ using std::multimap;
 class IwyuPreprocessorInfo : public clang::PPCallbacks,
                              public clang::CommentHandler {
  public:
-  explicit IwyuPreprocessorInfo(const clang::Preprocessor& preprocessor)
-      : preprocessor_(preprocessor) {
+  IwyuPreprocessorInfo()
+      : main_file_(nullptr),
+        empty_file_info_(nullptr, this, ""),
+        current_inclusion_kind_(clang::InclusionDirective::Include) {
   }
 
   // The client *must* call this from the beginning of HandleTranslationUnit()
@@ -258,8 +262,9 @@ class IwyuPreprocessorInfo : public clang::PPCallbacks,
 
   // Called whenever an #include is seen in the preprocessor output.
   void AddDirectInclude(clang::SourceLocation includer_loc,
-                        clang::OptionalFileEntryRef includee,
-                        const string& include_name_as_written);
+                        const clang::FileEntry* includee,
+                        const string& include_name_as_written,
+                        clang::InclusionDirective::InclusionKind kind);
 
   // Determine if the comment is a pragma, and if so, process it.
   void HandlePragmaComment(clang::SourceRange comment_range);
@@ -368,9 +373,12 @@ class IwyuPreprocessorInfo : public clang::PPCallbacks,
   // location corresponds to.
   clang::SourceLocation include_filename_loc_;
 
-  // Keeps track of which files have the "always_keep" pragma, so they can be
-  // marked as such for all includers.
-  std::set<clang::OptionalFileEntryRef> always_keep_files_;
+  // Kind of current inclusion statement, e.g. #include, #import. Distinguish
+  // between different inclusion kinds only to report correctly added/removed
+  // lines. Inclusion kind doesn't affect IWYU logic.
+  // Need an instance variable because different callbacks are used to handle
+  // inclusion directive and to handle included file.
+  clang::InclusionDirective::InclusionKind current_inclusion_kind_;
 };
 
 }  // namespace include_what_you_use
