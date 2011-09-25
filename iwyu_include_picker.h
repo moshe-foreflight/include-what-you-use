@@ -51,10 +51,11 @@
 #include <utility>                      // for pair
 #include <vector>                       // for vector
 
-#include "clang/Basic/FileEntry.h"
+#include "clang/Lex/PreprocessingRecord.h"  // for InclusionDirective
 
-// TODO: Clean out pragmas as IWYU improves.
-// IWYU pragma: no_include <iterator>
+namespace clang {
+class FileEntry;
+}  // namespace clang
 
 namespace include_what_you_use {
 
@@ -104,9 +105,10 @@ class IncludePicker {
   // Call this for every #include seen during iwyu analysis.  The
   // include-picker can use this data to better suggest #includes,
   // perhaps.
-  void AddDirectInclude(const string& includer_filepath,
-                        const string& includee_filepath,
-                        const string& quoted_include_as_written);
+  void AddDirectInclude(
+      const string& includer_filepath, const string& includee_filepath,
+      const string& quoted_include_as_written,
+      clang::InclusionDirective::InclusionKind inclusion_kind);
 
   // Add this to say "map_to re-exports everything in file map_from".
   // map_from should be a quoted include.
@@ -182,7 +184,19 @@ class IncludePicker {
   bool HasMapping(const string& map_from_filepath,
                   const string& map_to_filepath) const;
 
-  bool IsPublic(clang::OptionalFileEntryRef file) const;
+  // ----- Inclusion kind API
+
+  // Returns true if iwyu encountered quoted_include and knows its inclusion
+  // kind. Iwyu assumes that encountered inclusion kind is the correct one, it
+  // doesn't fix inclusion directives.
+  bool HasInclusionKind(const string& quoted_include) const;
+
+  // Returns inclusion kind for quoted include. You should not call this method
+  // if inclusion kind is unknown (check beforehand with HasInclusionKind).
+  clang::InclusionDirective::InclusionKind GetInclusionKindForInclude(
+      const string& quoted_include) const;
+
+  bool IsPublic(const clang::FileEntry* file) const;
 
   // Parses a YAML/JSON file containing mapping directives of various types.
   void AddMappingsFromFile(const string& filename);
@@ -253,6 +267,12 @@ class IncludePicker {
   string MaybeGetIncludeNameAsWritten(const string& includer_filepath,
                                       const string& includee_filepath) const;
 
+  // Stores inclusion kind for quoted include and check consistency of inclusion
+  // directives usage.
+  void AddInclusionKindForQuotedInclude(
+      const string& quoted_include,
+      clang::InclusionDirective::InclusionKind inclusion_kind);
+
   // Given a collection of MappedIncludes, and a path that might include them,
   // choose the best quoted include form for each MappedInclude.
   vector<string> BestQuotedIncludesForIncluder(
@@ -304,8 +324,12 @@ class IncludePicker {
   // Make sure we don't do any non-const operations after finalizing.
   bool has_called_finalize_added_include_lines_;
 
-  // Controls regex dialect to use for mappings.
-  RegexDialect regex_dialect;
+  // Maps from a quoted include as typed to the inclusion kind (#include or
+  // #import). Used to preserve file inclusion, i.e. if it was #imported in
+  // original source file, iwyu should recommend this file to #import, not to
+  // #include.
+  map<string, clang::InclusionDirective::InclusionKind>
+      quoted_include_to_inclusion_kind_map_;
 };  // class IncludePicker
 
 }  // namespace include_what_you_use
