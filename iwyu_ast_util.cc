@@ -100,7 +100,11 @@ using clang::NamedDecl;
 using clang::NamespaceDecl;
 using clang::NestedNameSpecifier;
 using clang::ObjCObjectType;
-using clang::OptionalFileEntryRef;
+using clang::ObjCObjectPointerType;
+using clang::ObjCInterfaceDecl;
+using clang::ObjCProtocolDecl;
+using clang::ObjCCategoryDecl;
+using clang::ObjCContainerDecl;
 using clang::OverloadExpr;
 using clang::PointerType;
 using clang::PrintingPolicy;
@@ -748,8 +752,8 @@ bool HasCovariantReturnType(const CXXMethodDecl* method_decl) {
   return false;
 }
 
-const TagDecl* GetTagDefinition(const Decl* decl) {
-  const TagDecl* as_tag = DynCastFrom(decl);
+const NamedDecl* GetDefinitionForClass(const Decl* decl) {
+  const RecordDecl* as_record = DynCastFrom(decl);
   const ClassTemplateDecl* as_tpl = DynCastFrom(decl);
   if (as_tpl) {  // Convert the template to its underlying class defn.
     as_tag = DynCastFrom(as_tpl->getTemplatedDecl());
@@ -781,6 +785,12 @@ const TagDecl* GetTagDefinition(const Decl* decl) {
       }
     }
   }
+
+  if (const ObjCInterfaceDecl* as_objc = DynCastFrom(decl))
+    return as_objc->getDefinition();
+  if (const ObjCProtocolDecl* as_objc = DynCastFrom(decl))
+    return as_objc->getDefinition();
+
   return nullptr;
 }
 
@@ -796,6 +806,8 @@ SourceRange GetSourceRangeOfClassDecl(const Decl* decl) {
     return tag_decl->getSourceRange();
   if (const TemplateDecl* tpl_decl = DynCastFrom(decl))
     return tpl_decl->getSourceRange();
+  if (const ObjCContainerDecl* objc_decl = DynCastFrom(decl))
+    return objc_decl->getSourceRange();
   CHECK_UNREACHABLE_("Cannot get source range for this decl type");
 }
 
@@ -1157,6 +1169,13 @@ bool IsInNamespace(const NamedDecl* decl, const NamespaceDecl* ns_decl) {
       return true;
   }
 
+  if (const ObjCInterfaceDecl* as_objc_class =
+          dyn_cast<ObjCInterfaceDecl>(decl))
+    return !as_objc_class->isThisDeclarationADefinition();
+
+  if (const ObjCProtocolDecl* as_protocol = dyn_cast<ObjCProtocolDecl>(decl))
+    return !as_protocol->isThisDeclarationADefinition();
+
   return false;
 }
 
@@ -1214,8 +1233,13 @@ set<const NamedDecl*> GetNonTagRedecls(const NamedDecl* decl) {
   return retval;
 }
 
-set<const NamedDecl*> GetTagRedecls(const NamedDecl* decl) {
-  const TagDecl* tag_decl = DynCastFrom(decl);
+set<const NamedDecl*> GetClassRedecls(const NamedDecl* decl) {
+  if (const ObjCInterfaceDecl* objc_decl = DynCastFrom(decl))
+    return GetRedeclsOfRedeclarable(objc_decl);
+  if (const ObjCProtocolDecl* objc_decl = DynCastFrom(decl))
+    return GetRedeclsOfRedeclarable(objc_decl);
+
+  const RecordDecl* record_decl = DynCastFrom(decl);
   const ClassTemplateDecl* tpl_decl = DynCastFrom(decl);
   if (tpl_decl)
     tag_decl = tpl_decl->getTemplatedDecl();
@@ -1469,6 +1493,9 @@ static const NamedDecl* TypeToDeclImpl(const Type* type, bool as_written) {
     return template_decl;
   } else if (const RecordType* record_type = type->getAs<RecordType>()) {
     return record_type->getDecl();
+  } else if (const ObjCObjectPointerType* objc_type =
+                 type->getAs<ObjCObjectPointerType>()) {
+    return objc_type->getInterfaceDecl();
   } else if (const TagType* tag_type = DynCastFrom(type)) {
     return tag_type->getDecl();    // probably just enums
   } else if (template_decl) {
