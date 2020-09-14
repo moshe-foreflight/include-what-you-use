@@ -115,6 +115,10 @@ def PrintLoadedTestsAndFiles():
   for (cls, test) in EnumerateLoadedTests():
     print('%s.%s:%s' % (cls.__name__, test, cls.test_files[test]))
 
+@GenerateTests(rootdir='tests/objc', pattern='*.m')
+class objc(unittest.TestCase):
+  pass
+
 
 def RunTestFile(cc_file):
   """ Executes the test for cc_file, independent of unittest infra.
