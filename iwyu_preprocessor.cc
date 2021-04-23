@@ -778,6 +778,11 @@ void IwyuPreprocessorInfo::InclusionDirective(SourceLocation hash_loc,
                                               CharacteristicKind file_type) {
   include_filename_loc_ = filename_range.getBegin();
 
+  if (imported)
+    GlobalIncludeMap().module(hash_loc, imported);
+  else
+    GlobalIncludeMap().include(hash_loc, file);
+
   // among additional inclusion directives we handle only Objective-C #import
   if (include_token.is(clang::tok::identifier) &&
       (include_token.getIdentifierInfo()->getPPKeywordID() ==
@@ -785,6 +790,12 @@ void IwyuPreprocessorInfo::InclusionDirective(SourceLocation hash_loc,
     current_inclusion_kind_ = InclusionDirective::Import;
   else
     current_inclusion_kind_ = InclusionDirective::Include;
+}
+
+void IwyuPreprocessorInfo::moduleImport(clang::SourceLocation ImportLoc,
+                                        clang::ModuleIdPath Path,
+                                        const clang::Module* Imported) {
+  GlobalIncludeMap().module(ImportLoc, Imported);
 }
 
 void IwyuPreprocessorInfo::FileChanged(SourceLocation loc,
