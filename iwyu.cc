@@ -3904,16 +3904,7 @@ class IwyuAstConsumer
     num_edits += preprocessor_info().FileInfoFor(main_file)
         ->CalculateAndReportIwyuViolations();
 
-    int exit_code = EXIT_SUCCESS;
-    if (GlobalFlags().exit_code_always) {
-      // If we should always fail, use --error_always value.
-      exit_code = GlobalFlags().exit_code_always;
-    } else if (num_edits > 0) {
-      // If there were IWYU violations, use --error value.
-      exit_code = GlobalFlags().exit_code_error;
-    }
-
-    exit(exit_code);
+    exit(EXIT_SUCCESS);
   }
 
   void ParseFunctionTemplates(Sema& sema, TranslationUnitDecl* tu_decl) {
@@ -4722,11 +4713,16 @@ int main(int argc, char **argv) {
   //   path/to/iwyu -Xiwyu --verbose=4 [-Xiwyu --other_iwyu_flag]... \
   //       CLANG_FLAGS... foo.cc
   OptionsParser options_parser(argc, argv);
-  if (!ExecuteAction(options_parser.clang_argc(), options_parser.clang_argv(),
-                     [](const ToolChain& toolchain) {
-                       return std::make_unique<IwyuAction>(toolchain);
-                     })) {
+
+  std::unique_ptr<clang::CompilerInstance> compiler(CreateCompilerInstance(
+      options_parser.clang_argc(), options_parser.clang_argv()));
+  if (!compiler) {
     return EXIT_FAILURE;
   }
+
+  // Create and execute the frontend to generate an LLVM bitcode module.
+  std::unique_ptr<clang::ASTFrontendAction> action(new IwyuAction);
+  compiler->ExecuteAction(*action);
+
   return EXIT_SUCCESS;
 }
