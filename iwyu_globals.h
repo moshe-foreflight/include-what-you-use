@@ -115,9 +115,6 @@ struct CommandlineFlags {
   bool cxx17ns; // -C: C++17 nested namespace syntax
   int exit_code_error;   // Exit with this code for iwyu violations.
   int exit_code_always;  // Always exit with this exit code.
-  set<string> dbg_flags; // Debug flags.
-  set<string> exp_flags;       // Experimental flags.
-  RegexDialect regex_dialect;  // Dialect for regular expression processing.
 };
 
 struct IncludeMap {

@@ -127,13 +127,6 @@ static void PrintHelp(const char* extra_msg) {
          "   --error[=N]: exit with N (default: 1) for iwyu violations\n"
          "   --error_always[=N]: always exit with N (default: 1) (for use\n"
          "        with 'make -k')\n"
-         "   --debug=flag[,flag...]: debug flags (undocumented)\n"
-         "   --regex=<dialect>: use specified regex dialect in IWYU:\n"
-         "          llvm:       fast and simple (default)\n"
-         "          ecmascript: slower, but more feature-complete\n"
-         "   --experimental=flag[,flag...]: enable experimental features\n"
-         "          clang_mappings: use Clang canonical standard library\n"
-         "                          mappings instead of built-in mappings\n"
          "\n"
          "In addition to IWYU-specific options you can specify the following\n"
          "options without -Xiwyu prefix:\n"
@@ -151,6 +144,22 @@ static void PrintVersion() {
     llvm::outs() << " (git:" << iwyu_rev << ")";
   }
   llvm::outs() << " based on " << getClangFullVersion() << "\n";
+}
+
+static bool ParseIntegerOptarg(const char* optarg, int* res) {
+  char* endptr = nullptr;
+  long val = strtol(optarg, &endptr, 10);
+  if (!endptr || endptr == optarg)
+    return false;
+
+  if (*endptr != '\0')
+    return false;
+
+  if (val > INT_MAX || val < INT_MIN)
+    return false;
+
+  *res = (int)val;
+  return true;
 }
 
 static bool ParseIntegerOptarg(const char* optarg, int* res) {
@@ -222,8 +231,7 @@ CommandlineFlags::CommandlineFlags()
       quoted_includes_first(false),
       cxx17ns(false),
       exit_code_error(EXIT_SUCCESS),
-      exit_code_always(EXIT_SUCCESS),
-      regex_dialect(RegexDialect::LLVM) {
+      exit_code_always(EXIT_SUCCESS) {
   // Always keep Qt .moc includes; its moc compiler does its own IWYU analysis.
   keep.emplace("*.moc");
 }
@@ -247,9 +255,6 @@ int CommandlineFlags::ParseArgv(int argc, char** argv) {
     {"cxx17ns", no_argument, nullptr, 'C'},
     {"error", optional_argument, nullptr, 'e'},
     {"error_always", optional_argument, nullptr, 'a'},
-    {"debug", required_argument, nullptr, 'd'},
-    {"regex", required_argument, nullptr, 'r'},
-    {"experimental", required_argument, nullptr, 'p'},
     {nullptr, 0, nullptr, 0}
   };
   static const char shortopts[] = "v:c:m:d:nr";
@@ -313,36 +318,7 @@ int CommandlineFlags::ParseArgv(int argc, char** argv) {
           exit(EXIT_FAILURE);
         }
         break;
-      case 'd': {
-        // Split argument on comma and save in global, ignoring empty elements.
-        vector<string> flags = Split(optarg, ",", 0);
-        dbg_flags.insert(flags.begin(),
-                         std::remove(flags.begin(), flags.end(), string()));
-        // Print all effective flags for traceability.
-        for (const string& f : dbg_flags) {
-          llvm::errs() << "Debug flag enabled: '" << f << "'\n";
-        }
-        break;
-      }
-      case 'r':
-        if (!ParseRegexDialect(optarg, &regex_dialect)) {
-          PrintHelp("FATAL ERROR: unsupported regex dialect.");
-          exit(EXIT_FAILURE);
-        }
-        break;
-      case 'p': {
-        // Split argument on comma and save in global, ignoring empty elements.
-        vector<string> flags = Split(optarg, ",", 0);
-        exp_flags.insert(flags.begin(),
-                         std::remove(flags.begin(), flags.end(), string()));
-        // Print all effective flags for traceability.
-        for (const string& f : exp_flags) {
-          llvm::errs() << "Experimental flag enabled: '" << f << "'\n";
-        }
-        break;
-      }
-      case -1:
-        return optind;  // means 'no more input'
+      case -1: return optind;   // means 'no more input'
       default:
         PrintHelp("FATAL ERROR: unknown flag.");
         exit(EXIT_FAILURE);
