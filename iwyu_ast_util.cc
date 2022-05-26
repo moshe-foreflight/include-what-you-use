@@ -752,8 +752,8 @@ bool HasCovariantReturnType(const CXXMethodDecl* method_decl) {
   return false;
 }
 
-const NamedDecl* GetDefinitionForClass(const Decl* decl) {
-  const RecordDecl* as_record = DynCastFrom(decl);
+const TagDecl* GetTagDefinition(const Decl* decl) {
+  const TagDecl* as_tag = DynCastFrom(decl);
   const ClassTemplateDecl* as_tpl = DynCastFrom(decl);
   if (as_tpl) {  // Convert the template to its underlying class defn.
     as_tag = DynCastFrom(as_tpl->getTemplatedDecl());
@@ -1161,13 +1161,15 @@ bool IsInInlineNamespace(const Decl* decl) {
   return false;
 }
 
-bool IsInNamespace(const NamedDecl* decl, const NamespaceDecl* ns_decl) {
-  const DeclContext* primary_ns_context = ns_decl->getPrimaryContext();
-  for (const DeclContext* dc = decl->getDeclContext(); dc;
-       dc = dc->getParent()) {
-    if (dc->getPrimaryContext() == primary_ns_context)
-      return true;
-  }
+bool IsForwardDecl(const NamedDecl* decl) {
+  if (const auto* tag_decl = dyn_cast<TagDecl>(decl)) {
+    // clang-format off
+    return (!tag_decl->getName().empty() &&
+            !tag_decl->isCompleteDefinition() &&
+            !tag_decl->isEmbeddedInDeclarator() &&
+            !IsFriendDecl(tag_decl) &&
+            !IsExplicitInstantiation(tag_decl));
+  }  // clang-format on
 
   if (const ObjCInterfaceDecl* as_objc_class =
           dyn_cast<ObjCInterfaceDecl>(decl))
@@ -1216,7 +1218,7 @@ inline set<const NamedDecl*> GetRedeclsOfRedeclarable(
 // The only way to find out whether a decl can be dyn_cast to a
 // Redeclarable<T> and what T is is to enumerate the possibilities.
 // Hence we hard-code the list.
-set<const NamedDecl*> GetNonTagRedecls(const NamedDecl* decl) {
+set<const clang::NamedDecl*> GetNonTagRedecls(const clang::NamedDecl* decl) {
   CHECK_(!isa<TagDecl>(decl) && "For tag types, call GetTagRedecls()");
   CHECK_(!isa<ClassTemplateDecl>(decl) && "For tpls, call GetTagRedecls()");
   // TODO(wan): go through iwyu to replace TypedefDecl with
@@ -1233,13 +1235,8 @@ set<const NamedDecl*> GetNonTagRedecls(const NamedDecl* decl) {
   return retval;
 }
 
-set<const NamedDecl*> GetClassRedecls(const NamedDecl* decl) {
-  if (const ObjCInterfaceDecl* objc_decl = DynCastFrom(decl))
-    return GetRedeclsOfRedeclarable(objc_decl);
-  if (const ObjCProtocolDecl* objc_decl = DynCastFrom(decl))
-    return GetRedeclsOfRedeclarable(objc_decl);
-
-  const RecordDecl* record_decl = DynCastFrom(decl);
+set<const NamedDecl*> GetTagRedecls(const NamedDecl* decl) {
+  const TagDecl* tag_decl = DynCastFrom(decl);
   const ClassTemplateDecl* tpl_decl = DynCastFrom(decl);
   if (tpl_decl)
     tag_decl = tpl_decl->getTemplatedDecl();
@@ -1272,8 +1269,7 @@ set<const NamedDecl*> GetClassRedecls(const NamedDecl* decl) {
 
 const NamedDecl* GetFirstRedecl(const NamedDecl* decl) {
   const NamedDecl* first_decl = decl;
-  SourceLocation first_decl_loc = GetLocation(first_decl);
-
+  FullSourceLoc first_decl_loc(GetLocation(first_decl), *GlobalSourceManager());
   set<const NamedDecl*> all_redecls = GetTagRedecls(decl);
   if (all_redecls.empty())  // input is not a class or class template
     return nullptr;
