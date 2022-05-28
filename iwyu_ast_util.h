@@ -861,6 +861,12 @@ TemplateInstantiationData GetTplInstDataForClassNoComponentTypes(
 // according to the standard.
 bool CanBeOpaqueDeclared(const clang::EnumType* type);
 
+// Returns true if, for the given enumeration type, opaque (i.e. forward,
+// in fact) declarations are allowed. It means that the enumeration should be
+// either scoped or unscoped with explicitly stated underlying type,
+// according to the standard.
+bool CanBeOpaqueDeclared(const clang::EnumType* type);
+
 // --- Utilities for Stmt.
 
 // Returns true if the given expr is '&<something>'.

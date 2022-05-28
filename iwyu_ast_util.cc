@@ -1645,6 +1645,10 @@ bool CanBeOpaqueDeclared(const EnumType* type) {
   return type->getDecl()->isFixed();
 }
 
+bool CanBeOpaqueDeclared(const clang::EnumType* type) {
+  return type->getDecl()->isFixed();
+}
+
 // --- Utilities for Stmt.
 
 bool IsAddressOf(const Expr* expr) {
