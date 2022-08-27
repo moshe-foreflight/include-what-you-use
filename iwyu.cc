@@ -256,8 +256,7 @@ using clang::TemplateSpecializationTypeLoc;
 using clang::TemplateTypeParmDecl;
 using clang::TranslationUnitDecl;
 using clang::Type;
-using clang::TypeAliasDecl;
-using clang::TypeAliasTemplateDecl;
+using clang::TypeDecl;
 using clang::TypeLoc;
 using clang::TypeSourceInfo;
 using clang::TypeTrait;
@@ -2575,32 +2574,14 @@ class IwyuBaseAstVisitor : public BaseAstVisitor<Derived> {
     // Read past elaborations like 'class' keyword or namespaces.
     ast_node = MostElaboratedAncestor(ast_node);
 
-    // Usually ObjC class type is ObjCInterfaceType inside ObjCObjectPointerType
-    // But if type contains protocol list, e.g. NSObject<SomeProtocol>*, then
-    // AST looks like
-    // ObjCObjectPointerType
-    //   ObjCObjectType
-    //     ObjCInterfaceType
-    // Additional ObjCObjectType does not make ObjCInterface not forward
-    // declarable, that's why we skip ObjCObjectType.
-    if (ast_node->IsA<ObjCInterfaceType>() &&
-        ast_node->ParentIsA<ObjCObjectType>()) {
-      ast_node = ast_node->parent();
-      const ObjCObjectType* protocol_container =
-          ast_node->GetAs<ObjCObjectType>();
-      CHECK_(!protocol_container->qual_empty() &&
-             "Additional ObjCObjectType should be caused only by non-empty "
-             "protocol list.");
-    }
-
-    // Now there are two options: either we have a type or we have a declaration
-    // involving a type.
+    // Now there are two options: either we are part of a type or we are part of
+    // a declaration involving a type.
     const Type* parent_type = ast_node->GetParentAs<Type>();
     if (parent_type == nullptr) {
       // It's not a type; analyze different kinds of declarations.
       if (const auto *decl = ast_node->GetParentAs<ValueDecl>()) {
-        // We can shortcircuit static data member and 'extern' variable
-        // declarations immediately, they can always be forward-declared.
+        // We can shortcircuit static data member declarations immediately,
+        // they can always be forward-declared.
         if (const auto *var_decl = dyn_cast<VarDecl>(decl)) {
           if (!var_decl->isThisDeclarationADefinition() &&
               (var_decl->isStaticDataMember() ||
@@ -2610,12 +2591,27 @@ class IwyuBaseAstVisitor : public BaseAstVisitor<Derived> {
         }
 
         parent_type = GetTypeOf(decl);
-      } else if (const auto* parent_decl = ast_node->GetParentAs<TagDecl>()) {
+      } else if (const auto *decl = ast_node->GetParentAs<TypeDecl>()) {
+        // Elaborated types in type decls are always forward-declarable
+        // (and usually count as forward declarations themselves).
+        if (IsElaboratedTypeSpecifier(ast_node)) {
+          return true;
+        }
+
         // If we ourselves are a forward-decl -- that is, we're the type
         // component of a forward-declaration (which would be our parent
         // AST node) -- then we're forward-declarable by definition.
-        if (IsForwardDecl(parent_decl))
-          return true;
+        if (const auto* parent_decl = ast_node->GetParentAs<TagDecl>()) {
+          if (IsForwardDecl(parent_decl))
+            return true;
+        }
+
+        // If we're part of a typedef declaration, we don't want to forward-
+        // declare even if we're a pointer ('typedef Foo* Bar; Bar x; x->a'
+        // needs full type of Foo.)
+        if (ast_node->ParentIsA<TypedefNameDecl>()) {
+          return false;
+        }
       }
     }
 
