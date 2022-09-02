@@ -69,6 +69,7 @@ using std::vector;
 enum class RegexDialect;
 struct IncludeMapEntry;
 
+enum class RegexDialect;
 enum IncludeVisibility { kUnusedVisibility, kPublic, kPrivate };
 enum class CStdLib { None, ClangSymbols, Glibc };
 enum class CXXStdLib { None, ClangSymbols, Libstdcxx, Libcxx };
@@ -97,8 +98,7 @@ class IncludePicker {
   // visibility of the respective files.
   typedef map<string, IncludeVisibility> VisibilityMap;
 
-  IncludePicker(RegexDialect regex_dialect, CStdLib cstdlib,
-                CXXStdLib cxxstdlib);
+  IncludePicker(bool no_default_mappings, RegexDialect regex_dialect);
 
   // ----- Routines to dynamically modify the include-picker
 
@@ -324,12 +324,8 @@ class IncludePicker {
   // Make sure we don't do any non-const operations after finalizing.
   bool has_called_finalize_added_include_lines_;
 
-  // Maps from a quoted include as typed to the inclusion kind (#include or
-  // #import). Used to preserve file inclusion, i.e. if it was #imported in
-  // original source file, iwyu should recommend this file to #import, not to
-  // #include.
-  map<string, clang::InclusionDirective::InclusionKind>
-      quoted_include_to_inclusion_kind_map_;
+  // Controls regex dialect to use for mappings.
+  RegexDialect regex_dialect;
 };  // class IncludePicker
 
 }  // namespace include_what_you_use

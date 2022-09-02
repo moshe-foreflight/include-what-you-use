@@ -1315,12 +1315,13 @@ bool MappedInclude::HasAbsoluteQuotedInclude() const {
   return IsAbsolutePath(path);
 }
 
-IncludePicker::IncludePicker(RegexDialect regex_dialect,
-                             CStdLib cstdlib,
-                             CXXStdLib cxxstdlib)
+IncludePicker::IncludePicker(bool no_default_mappings,
+                             RegexDialect regex_dialect)
     : has_called_finalize_added_include_lines_(false),
       regex_dialect(regex_dialect) {
-  AddDefaultMappings(cstdlib, cxxstdlib);
+  if (!no_default_mappings) {
+    AddDefaultMappings();
+  }
 }
 
 void IncludePicker::AddDefaultMappings(CStdLib cstdlib,
@@ -1575,18 +1576,18 @@ void IncludePicker::ExpandRegexes() {
     for (const string& regex_key : filepath_include_map_regex_keys) {
       const string regex = regex_key.substr(1);
       const vector<MappedInclude>& map_to = filepath_include_map_[regex_key];
+      // Enclose the regex in ^(...)$ for full match.
+      std::string regex("^(" + regex_key.substr(1) + ")$");
       if (RegexMatch(regex_dialect, hdr, regex) &&
           !ContainsQuotedInclude(map_to, hdr)) {
-        for (const MappedInclude& target : map_to) {
-          filepath_include_map_[hdr].push_back(MappedInclude(
-              RegexReplace(regex_dialect, hdr, regex, target.quoted_include)));
-        }
+        Extend(&filepath_include_map_[hdr], filepath_include_map_[regex_key]);
         MarkVisibility(&include_visibility_map_, hdr,
                        include_visibility_map_[regex_key]);
       }
     }
     for (const string& regex_key : friend_to_headers_map_regex_keys) {
-      if (RegexMatch(regex_dialect, hdr, regex_key.substr(1))) {
+      std::string regex("^(" + regex_key.substr(1) + ")$");
+      if (RegexMatch(regex_dialect, hdr, regex)) {
         InsertAllInto(friend_to_headers_map_[regex_key],
                       &friend_to_headers_map_[hdr]);
       }

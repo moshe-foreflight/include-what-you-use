@@ -36,6 +36,7 @@
 #include "iwyu_path_util.h"
 #include "iwyu_port.h"  // for CHECK_, etc
 #include "iwyu_regex.h"
+#include "iwyu_stl_util.h"
 #include "iwyu_string_util.h"
 #include "iwyu_verrs.h"
 #include "iwyu_version.h"
@@ -128,6 +129,9 @@ static void PrintHelp(const char* extra_msg) {
          "   --error_always[=N]: always exit with N (default: 1) (for use\n"
          "        with 'make -k')\n"
          "   --debug=flag[,flag...]: debug flags (undocumented)\n"
+         "   --regex=<dialect>: use specified regex dialect in IWYU:\n"
+         "          llvm:       fast and simple (default)\n"
+         "          ecmascript: slower, but more feature-complete\n"
          "\n"
          "In addition to IWYU-specific options you can specify the following\n"
          "options without -Xiwyu prefix:\n"
@@ -232,7 +236,8 @@ CommandlineFlags::CommandlineFlags()
       quoted_includes_first(false),
       cxx17ns(false),
       exit_code_error(EXIT_SUCCESS),
-      exit_code_always(EXIT_SUCCESS) {
+      exit_code_always(EXIT_SUCCESS),
+      regex_dialect(RegexDialect::LLVM) {
   // Always keep Qt .moc includes; its moc compiler does its own IWYU analysis.
   keep.emplace("*.moc");
 }
@@ -257,9 +262,10 @@ int CommandlineFlags::ParseArgv(int argc, char** argv) {
     {"error", optional_argument, nullptr, 'e'},
     {"error_always", optional_argument, nullptr, 'a'},
     {"debug", required_argument, nullptr, 'd'},
+    {"regex", required_argument, nullptr, 'r'},
     {nullptr, 0, nullptr, 0}
   };
-  static const char shortopts[] = "v:c:m:d:n";
+  static const char shortopts[] = "v:c:m:d:nr";
   while (true) {
     switch (getopt_long(argc, argv, shortopts, longopts, nullptr)) {
       case 'c': AddGlobToReportIWYUViolationsFor(optarg); break;
@@ -331,6 +337,12 @@ int CommandlineFlags::ParseArgv(int argc, char** argv) {
         }
         break;
       }
+      case 'r':
+        if (!ParseRegexDialect(optarg, &regex_dialect)) {
+          PrintHelp("FATAL ERROR: unsupported regex dialect.");
+          exit(EXIT_FAILURE);
+        }
+        break;
       case -1: return optind;   // means 'no more input'
       default:
         PrintHelp("FATAL ERROR: unknown flag.");
@@ -462,12 +474,8 @@ void InitGlobals(CompilerInstance& compiler, const ToolChain& toolchain) {
   vector<HeaderSearchPath> search_paths = ComputeHeaderSearchPaths(
       &compiler.getPreprocessor().getHeaderSearchInfo());
   SetHeaderSearchPaths(search_paths);
-
-  RegexDialect regex_dialect = GlobalFlags().regex_dialect;
-  CStdLib cstdlib = DeriveCStdLib();
-  CXXStdLib cxxstdlib = DeriveCXXStdLib(toolchain);
-  include_picker = new IncludePicker(regex_dialect, cstdlib, cxxstdlib);
-
+  include_picker = new IncludePicker(GlobalFlags().no_default_mappings,
+                                     GlobalFlags().regex_dialect);
   function_calls_full_use_cache = new FullUseCache;
   class_members_full_use_cache = new FullUseCache;
 
@@ -589,19 +597,8 @@ void InitGlobalsAndFlagsForTesting() {
   commandline_flags = new CommandlineFlags;
   source_manager = nullptr;
   data_getter = nullptr;
-  CStdLib cstdlib = CStdLib::Glibc;
-  CXXStdLib cxxstdlib = CXXStdLib::Libstdcxx;
-  if (GlobalFlags().no_default_mappings) {
-    cstdlib = CStdLib::None;
-    cxxstdlib = CXXStdLib::None;
-  } else if (GlobalFlags().HasExperimentalFlag("clang_mappings")) {
-    cstdlib = CStdLib::ClangSymbols;
-    cxxstdlib = CXXStdLib::ClangSymbols;
-  }
-
-  include_picker =
-      new IncludePicker(GlobalFlags().regex_dialect, cstdlib, cxxstdlib);
-
+  include_picker = new IncludePicker(GlobalFlags().no_default_mappings,
+                                     GlobalFlags().regex_dialect);
   function_calls_full_use_cache = new FullUseCache;
   class_members_full_use_cache = new FullUseCache;
 
