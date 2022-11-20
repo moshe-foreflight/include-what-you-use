@@ -41,6 +41,7 @@
 #include "llvm/ADT/StringRef.h"
 #include "llvm/Support/Casting.h"
 #include "llvm/Support/raw_ostream.h"
+#include "clang/AST/ASTContext.h"
 #include "clang/AST/Decl.h"
 #include "clang/AST/DeclObjC.h"
 #include "clang/AST/DeclBase.h"
@@ -172,7 +173,8 @@ const FakeNamedDecl* FakeNamedDeclIfItIsOne(const NamedDecl* decl) {
 std::string PrintableUnderlyingType(const EnumDecl* enum_decl) {
   if (const clang::TypeSourceInfo* type_source_info =
           enum_decl->getIntegerTypeSourceInfo()) {
-    return " : " + type_source_info->getType().getAsString();
+    return " : " + type_source_info->getType().getAsString(
+                       enum_decl->getASTContext().getPrintingPolicy());
   }
 
   return std::string();
