@@ -31,6 +31,7 @@
 #include "iwyu_string_util.h"
 #include "iwyu_verrs.h"
 #include "llvm/Support/raw_ostream.h"
+#include "clang/AST/Decl.h"
 #include "clang/Basic/IdentifierTable.h"
 #include "clang/Basic/TokenKinds.h"
 #include "clang/Lex/MacroInfo.h"
@@ -52,9 +53,7 @@ using clang::MacroDefinition;
 using clang::MacroDirective;
 using clang::InclusionDirective;
 using clang::MacroInfo;
-using clang::Module;
 using clang::NamedDecl;
-using clang::OptionalFileEntryRef;
 using clang::Preprocessor;
 using clang::SourceLocation;
 using clang::SourceRange;
@@ -1202,7 +1201,7 @@ bool IwyuPreprocessorInfo::ForwardDeclareIsMarkedKeep(
   SourceLocation loc = decl->getEndLoc();
 
   // Is the decl part of a begin_keep/end_keep block?
-  OptionalFileEntryRef file = GetFileEntry(loc);
+  const FileEntry* file = GetFileEntry(loc);
   auto keep_ranges = keep_location_ranges_.equal_range(file);
   for (auto it = keep_ranges.first; it != keep_ranges.second; ++it) {
     if (it->second.fullyContains(loc)) {
@@ -1212,25 +1211,5 @@ bool IwyuPreprocessorInfo::ForwardDeclareIsMarkedKeep(
   // Is the declaration itself marked with trailing comment?
   return (LineHasText(loc, "// IWYU pragma: keep") ||
           LineHasText(loc, "/* IWYU pragma: keep"));
-}
-
-bool IwyuPreprocessorInfo::ForwardDeclareIsExported(
-    const NamedDecl* decl) const {
-  // Use end-location so that any trailing comments match only on the last line.
-  SourceLocation loc = decl->getEndLoc();
-  if (!loc.isValid())
-    return false;
-
-  // Is the decl part of a begin_exports/end_exports block?
-  OptionalFileEntryRef file = GetFileEntry(loc);
-  auto export_ranges = export_location_ranges_.equal_range(file);
-  for (auto it = export_ranges.first; it != export_ranges.second; ++it) {
-    if (it->second.fullyContains(loc)) {
-      return true;
-    }
-  }
-  // Is the declaration itself marked with trailing comment?
-  return (LineHasText(loc, "// IWYU pragma: export") ||
-          LineHasText(loc, "/* IWYU pragma: export"));
 }
 }  // namespace include_what_you_use

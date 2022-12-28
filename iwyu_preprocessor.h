@@ -77,12 +77,9 @@
 #include "llvm/ADT/StringRef.h"
 
 namespace clang {
-class MacroArgs;
-class MacroDefinition;
-class MacroDirective;
-class Module;
+class FileEntry;
+class MacroInfo;
 class NamedDecl;
-class Token;
 }  // namespace clang
 
 namespace include_what_you_use {
@@ -175,9 +172,6 @@ class IwyuPreprocessorInfo : public clang::PPCallbacks,
 
   // Return true if the fwd decl is marked with "IWYU pragma: keep".
   bool ForwardDeclareIsMarkedKeep(const clang::NamedDecl* decl) const;
-
-  // Return true if the fwd decl is marked with "IWYU pragma: export".
-  bool ForwardDeclareIsExported(const clang::NamedDecl* decl) const;
 
  protected:
   // Preprocessor event handlers called by Clang.
