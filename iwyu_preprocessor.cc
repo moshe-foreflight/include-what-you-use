@@ -962,18 +962,24 @@ void IwyuPreprocessorInfo::ReportMacroUse(const string& name,
   GetFromFileInfoMap(defined_in)->ReportDefinedMacroUse(used_in);
 }
 
+// As above, but get the definition location from macros_definition_loc_.
+void IwyuPreprocessorInfo::FindAndReportMacroUse(const string& name,
+                                                 SourceLocation loc) {
+  if (const SourceLocation* dfn_loc =
+          FindInMap(&macros_definition_loc_, name)) {
+    ReportMacroUse(name, loc, *dfn_loc);
+  }
+}
+
 //------------------------------------------------------------
 // Post-processing functions (done after all source is read).
 
 // Adds of includer's includes, direct or indirect, into retval.
 void IwyuPreprocessorInfo::AddAllIncludesAsFileEntries(
-    OptionalFileEntryRef includer, set<OptionalFileEntryRef>* retval) const {
-  const IwyuFileInfo* file_info = FileInfoFor(includer);
-  if (!file_info)
-    return;
-
-  for (OptionalFileEntryRef include :
-       file_info->direct_includes_as_fileentries()) {
+    const FileEntry* includer, set<const FileEntry*>* retval) const {
+  set<const FileEntry*> direct_incs =
+      FileInfoOrEmptyFor(includer).direct_includes_as_fileentries();
+  for (const FileEntry* include : direct_incs) {
     if (ContainsKey(*retval, include))  // avoid infinite recursion
       continue;
     retval->insert(include);
@@ -1016,9 +1022,9 @@ void IwyuPreprocessorInfo::PopulateIntendsToProvideMap() {
     if (picker.IsPublic(file)) {
       AddAllIncludesAsFileEntries(file, &intends_to_provide_map_[file]);
     } else {
-      const set<OptionalFileEntryRef>& direct_includes =
+      const set<const FileEntry*>& direct_includes =
           fileinfo.second.direct_includes_as_fileentries();
-      for (OptionalFileEntryRef inc : direct_includes) {
+      for (const FileEntry* inc : direct_includes) {
         intends_to_provide_map_[file].insert(inc);
         if (picker.IsPublic(inc))
           AddAllIncludesAsFileEntries(inc, &intends_to_provide_map_[file]);
@@ -1031,7 +1037,7 @@ void IwyuPreprocessorInfo::PopulateIntendsToProvideMap() {
     OptionalFileEntryRef file = fileinfo.first;
     // See if a round-trip to string and back ends up at a different file.
     const string quoted_include = ConvertToQuotedInclude(GetFilePath(file));
-    OptionalFileEntryRef other_file =
+    const FileEntry* other_file =
         GetOrDefault(include_to_fileentry_map_, quoted_include, file);
     if (other_file != file) {
       InsertAllInto(intends_to_provide_map_[file],
@@ -1137,8 +1143,8 @@ IwyuFileInfo* IwyuPreprocessorInfo::FileInfoFor(
 }
 
 bool IwyuPreprocessorInfo::PublicHeaderIntendsToProvide(
-    OptionalFileEntryRef public_header, OptionalFileEntryRef other_file) const {
-  if (const set<OptionalFileEntryRef>* provides =
+    const FileEntry* public_header, const FileEntry* other_file) const {
+  if (const set<const FileEntry*>* provides =
           FindInMap(&intends_to_provide_map_, public_header)) {
     return ContainsKey(*provides, other_file);
   }
@@ -1146,8 +1152,8 @@ bool IwyuPreprocessorInfo::PublicHeaderIntendsToProvide(
 }
 
 bool IwyuPreprocessorInfo::FileTransitivelyIncludes(
-    OptionalFileEntryRef includer, OptionalFileEntryRef includee) const {
-  if (const set<OptionalFileEntryRef>* all_includes =
+    const FileEntry* includer, const FileEntry* includee) const {
+  if (const set<const FileEntry*>* all_includes =
           FindInMap(&transitive_include_map_, includer)) {
     return ContainsKey(*all_includes, includee);
   }
@@ -1155,10 +1161,10 @@ bool IwyuPreprocessorInfo::FileTransitivelyIncludes(
 }
 
 bool IwyuPreprocessorInfo::FileTransitivelyIncludes(
-    OptionalFileEntryRef includer, const string& quoted_includee) const {
-  if (const set<OptionalFileEntryRef>* all_includes =
+    const FileEntry* includer, const string& quoted_includee) const {
+  if (const set<const FileEntry*>* all_includes =
           FindInMap(&transitive_include_map_, includer)) {
-    for (OptionalFileEntryRef include : *all_includes) {
+    for (const FileEntry* include : *all_includes) {
       if (ConvertToQuotedInclude(GetFilePath(include)) == quoted_includee)
         return true;
     }

@@ -1472,6 +1472,67 @@ class IwyuBaseAstVisitor : public BaseAstVisitor<Derived> {
     return true;
   }
 
+  // Returns the first type that is not a typedef in a template.  For example,
+  // for template
+  //
+  //   template<typename T> class Foo {
+  //     typedef T value_type;
+  //     typedef value_type& reference;
+  //   };
+  //
+  // for type 'reference' it will return type T with which Foo was instantiated.
+  const Type* DesugarDependentTypedef(const TypedefType* typedef_type) {
+    const DeclContext* parent =
+        typedef_type->getDecl()->getLexicalDeclContext();
+    if (const ClassTemplateSpecializationDecl* template_parent =
+            DynCastFrom(parent)) {
+      return DesugarDependentTypedef(typedef_type, template_parent);
+    }
+    return typedef_type;
+  }
+
+  const Type* DesugarDependentTypedef(
+      const TypedefType* typedef_type, const RecordDecl* parent) {
+    const Type* underlying_type =
+        typedef_type->getDecl()->getUnderlyingType().getTypePtr();
+    if (const TypedefType* underlying_typedef = DynCastFrom(underlying_type)) {
+      if (underlying_typedef->getDecl()->getLexicalDeclContext() == parent) {
+        return DesugarDependentTypedef(underlying_typedef, parent);
+      }
+    }
+    return underlying_type;
+  }
+
+  set<const Type*> GetCallerResponsibleTypesForTypedef(
+      const TypedefNameDecl* decl) {
+    set<const Type*> retval;
+    const Type* underlying_type = decl->getUnderlyingType().getTypePtr();
+    // If the underlying type is itself a typedef, we recurse.
+    if (const auto* underlying_typedef =
+            underlying_type->getAs<TypedefType>()) {
+      if (const auto* underlying_typedef_decl = dyn_cast<TypedefNameDecl>(TypeToDeclAsWritten(underlying_typedef))) {
+        // TODO(csilvers): if one of the intermediate typedefs
+        // #includes the necessary definition of the 'final'
+        // underlying type, do we want to return the empty set here?
+        return GetCallerResponsibleTypesForTypedef(underlying_typedef_decl);
+      }
+    }
+
+    const Type* deref_type =
+        RemovePointersAndReferencesAsWritten(underlying_type);
+    if (isa<SubstTemplateTypeParmType>(underlying_type) ||
+        CodeAuthorWantsJustAForwardDeclare(deref_type, GetLocation(decl))) {
+      retval.insert(deref_type);
+      // TODO(csilvers): include template type-args if appropriate.
+      // This requires doing an iwyu visit of the instantiated
+      // underlying type and seeing which type-args we require full
+      // use for.  Also have to handle the case where the type-args
+      // are themselves templates.  It will require pretty substantial
+      // iwyu surgery.
+    }
+    return retval;
+  }
+
   // ast_node is the node for the autocast CastExpr.  We use it to get
   // the parent CallExpr to figure out what function is being called.
   set<const Type*> GetProvidedTypesForAutocast(const ASTNode* ast_node) const {
@@ -1572,6 +1633,34 @@ class IwyuBaseAstVisitor : public BaseAstVisitor<Derived> {
     if (using_decl) {
       preprocessor_info().FileInfoFor(used_in)->ReportUsingDeclUse(
           used_loc, using_decl, use_flags, "(for using decl)");
+    }
+
+    // For typedefs, the user of the type is sometimes the one
+    // responsible for the underlying type.  We check if that is the
+    // case here, since we might be using a typedef type from
+    // anywhere.  ('autocast' is similar, but is handled in
+    // VisitCastExpr; 'fn-return-type' is also similar and is
+    // handled in HandleFunctionCall.)
+    if (const TypedefNameDecl* typedef_decl = DynCastFrom(target_decl)) {
+      // One exception: if this TypedefType is being used in another
+      // typedef (that is, 'typedef MyTypedef OtherTypdef'), then the
+      // user -- the other typedef -- is never responsible for the
+      // underlying type.  Instead, users of that typedef are.
+      const ASTNode* ast_node = MostElaboratedAncestor(current_ast_node());
+      if (!ast_node->ParentIsA<TypedefNameDecl>()) {
+        const set<const Type*>& underlying_types =
+            GetCallerResponsibleTypesForTypedef(typedef_decl);
+        if (!underlying_types.empty()) {
+          VERRS(6) << "User, not author, of typedef "
+                   << typedef_decl->getQualifiedNameAsString()
+                   << " owns the underlying type:\n";
+          // If any of the used types are themselves typedefs, this will
+          // result in a recursive expansion.  Note we are careful to
+          // recurse inside this class, and not go back to subclasses.
+          for (const Type* type : underlying_types)
+            IwyuBaseAstVisitor<Derived>::ReportTypeUse(used_loc, type);
+        }
+      }
     }
   }
 
@@ -1687,8 +1776,8 @@ class IwyuBaseAstVisitor : public BaseAstVisitor<Derived> {
     if (CanIgnoreCurrentASTNode())
       return true;
     const Type* underlying_type = decl->getUnderlyingType().getTypePtr();
-    const Type* deref_type
-        = RemovePointersAndReferencesAsWritten(underlying_type);
+    const Type* deref_type =
+        RemovePointersAndReferencesAsWritten(underlying_type);
 
     if (CodeAuthorWantsJustAForwardDeclare(deref_type, GetLocation(decl)) ||
         isa<SubstTemplateTypeParmType>(underlying_type)) {
@@ -1749,17 +1838,21 @@ class IwyuBaseAstVisitor : public BaseAstVisitor<Derived> {
     if (IsFriendDecl(decl))
       return true;
 
-    if (decl->isThisDeclarationADefinition()) {
-      // For non-member function definitions, report use of all previously seen
-      // decls.
-      if (decl->getKind() == Decl::Function) {
-        const FunctionDecl* redecl = decl;
-        while ((redecl = redecl->getPreviousDecl()))
-          ReportDeclUse(CurrentLoc(), redecl, nullptr, UF_DefinitionUse);
-      }
-    } else {
-      // Make all our types forward-declarable.
-      current_ast_node()->set_in_forward_declare_context(true);
+    // ...except the return value.
+    const Type* return_type = Desugar(decl->getReturnType().getTypePtr());
+    const bool is_responsible_for_return_type =
+        (!CanIgnoreType(return_type) &&
+         !IsPointerOrReferenceAsWritten(return_type) &&
+         !CodeAuthorWantsJustAForwardDeclare(return_type, GetLocation(decl)));
+    // Don't bother to report here, when the language agrees with us
+    // we need the full type; that will be reported elsewhere, so
+    // reporting here would be double-counting.
+    const bool type_use_reported_in_visit_function_type =
+        (!current_ast_node()->in_forward_declare_context() ||
+         !IsClassType(return_type));
+    if (is_responsible_for_return_type &&
+        !type_use_reported_in_visit_function_type) {
+      ReportTypeUse(GetLocation(decl), return_type, "(for fn return type)");
     }
     return true;
   }
@@ -2035,6 +2128,13 @@ class IwyuBaseAstVisitor : public BaseAstVisitor<Derived> {
     const Expr* base_expr = expr->getBase()->IgnoreParenImpCasts();
     const Type* base_type = GetTypeOf(base_expr);
     CHECK_(base_type && "Member's base does not have a type?");
+    const Type* deref_base_type  // For myvar->a, base-type will have a *
+        = expr->isArrow() ? RemovePointerFromType(base_type) : base_type;
+    if (CanIgnoreType(base_type) && CanIgnoreType(deref_base_type))
+      return true;
+    if (const TypedefType* typedef_type = DynCastFrom(deref_base_type)) {
+      deref_base_type = DesugarDependentTypedef(typedef_type);
+    }
     // Technically, we should say the type is being used at the
     // location of base_expr.  That may be a different file than us in
     // cases like MACRO.b().  However, while one can imagine
@@ -4000,7 +4100,7 @@ class IwyuAstConsumer
     if (compiler()->getDiagnostics().hasUnrecoverableErrorOccurred())
       exit(EXIT_FAILURE);
 
-    const set<OptionalFileEntryRef>* const files_to_report_iwyu_violations_for =
+    const set<const FileEntry*>* const files_to_report_iwyu_violations_for =
         preprocessor_info().files_to_report_iwyu_violations_for();
 
     // Some analysis, such as UsingDecl resolution, is deferred until the
@@ -4472,10 +4572,12 @@ class IwyuAstConsumer
 
     // If we're not in a forward-declare context, use of a template
     // specialization requires having the full type information.
-    if (!CanForwardDeclareType(current_ast_node()) || type->isTypeAlias()) {
-      const TemplateInstantiationData data = GetTplInstData(type);
-      instantiated_template_visitor_.ScanInstantiatedType(
-          current_ast_node(), data.resugar_map, data.provided_types);
+    if (!CanForwardDeclareType(current_ast_node())) {
+      const map<const Type*, const Type*> resugar_map =
+          GetTplTypeResugarMapForClass(type);
+
+      instantiated_template_visitor_.ScanInstantiatedType(current_ast_node(),
+                                                          resugar_map);
     }
 
     const auto [is_provided, comment] =
@@ -4635,7 +4737,8 @@ class IwyuAstConsumer
     if (!IsTemplatizedFunctionDecl(callee) && !IsTemplatizedType(parent_type))
       return true;
 
-    TemplateInstantiationData data = GetTplInstData(callee, calling_expr);
+    map<const Type*, const Type*> resugar_map =
+        GetTplTypeResugarMapForFunction(callee, calling_expr);
 
     if (parent_type) {    // means we're a method of a class
       const TemplateInstantiationData class_data = GetTplInstData(parent_type);

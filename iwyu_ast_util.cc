@@ -1565,11 +1565,10 @@ static TemplateInstantiationData GetTplInstDataForClassNoComponentTypes(
   // explicitly specified type may fulfill multiple template args:
   //   template <typename R, typename A1> struct Foo<R(A1)> { ... }
   set<unsigned> explicit_args;   // indices into tpl_args we've filled
-  SugaredTypeEnumerator type_enumerator;
-  set<const Type*> provided_types;
-  for (unsigned i = 0; i < written_tpl_args.size(); ++i) {
+  TypeEnumerator type_enumerator;
+  for (unsigned i = 0; i < tpl_spec_type->template_arguments().size(); ++i) {
     set<const Type*> arg_components =
-        type_enumerator.Enumerate(written_tpl_args[i]);
+        type_enumerator.Enumerate(tpl_spec_type->template_arguments()[i]);
     // Go through all template types mentioned in the arg-as-written,
     // and compare it against each of the types in the template decl
     // (the latter are all desugared).  If there's a match, update
