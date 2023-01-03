@@ -65,11 +65,6 @@ class OneUse {
   OneUse(const string& symbol_name, clang::OptionalFileEntryRef dfn_file,
          clang::SourceLocation use_loc);
 
-  // This constructor is used to track include file uses. See
-  // ReportIncludeFileUse for details.
-  OneUse(clang::OptionalFileEntryRef included_file,
-         const string& quoted_include);
-
   const string& symbol_name() const {
     return symbol_name_;
   }
@@ -79,7 +74,7 @@ class OneUse {
   const clang::NamedDecl* decl() const {
     return decl_;
   }
-  clang::OptionalFileEntryRef decl_file() const {
+  const clang::FileEntry* decl_file() const {
     return decl_file_;
   }
   const string& decl_filepath() const {
@@ -165,9 +160,6 @@ class OneIncludeOrForwardDeclareLine {
   }
   bool is_present() const {
     return is_present_;
-  }
-  bool is_elaborated_type() const {
-    return is_elaborated_type_;
   }
   const map<string, int>& symbol_counts() const {
     return symbol_counts_;
@@ -349,6 +341,10 @@ class IwyuFileInfo {
   size_t CalculateAndReportIwyuViolations();
 
  private:
+  const set<string>& direct_includes() const {
+    return direct_includes_;
+  }
+
   const set<string>& desired_includes() const {
     CHECK_(desired_includes_have_been_calculated_ &&
            "Must calculate desired includes before calling desired_includes()");

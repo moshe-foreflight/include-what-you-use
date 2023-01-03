@@ -343,7 +343,8 @@ int CommandlineFlags::ParseArgv(int argc, char** argv) {
           exit(EXIT_FAILURE);
         }
         break;
-      case -1: return optind;   // means 'no more input'
+      case -1:
+        return optind;  // means 'no more input'
       default:
         PrintHelp("FATAL ERROR: unknown flag.");
         exit(EXIT_FAILURE);
