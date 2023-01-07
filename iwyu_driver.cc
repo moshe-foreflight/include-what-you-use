@@ -21,8 +21,14 @@
 #include <utility>
 #include <vector>
 
-#include "clang/Basic/Diagnostic.h"
-#include "clang/Basic/DiagnosticFrontend.h"
+#include "llvm/ADT/SmallString.h"
+#include "llvm/ADT/STLExtras.h"
+#include "llvm/ADT/Triple.h"
+#include "llvm/Option/ArgList.h"
+#include "llvm/Support/ErrorOr.h"
+#include "llvm/Support/Host.h"
+#include "llvm/Support/FileSystem.h"
+#include "llvm/Support/MemoryBuffer.h"
 #include "clang/Basic/DiagnosticOptions.h"
 #include "clang/Driver/Action.h"
 #include "clang/Driver/Compilation.h"

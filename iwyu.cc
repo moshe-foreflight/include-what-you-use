@@ -97,6 +97,21 @@
 #include <utility>                      // for pair
 #include <vector>                       // for vector, swap
 
+#include "iwyu_ast_util.h"
+#include "iwyu_cache.h"
+#include "iwyu_globals.h"
+#include "iwyu_lexer_utils.h"
+#include "iwyu_location_util.h"
+#include "iwyu_output.h"
+#include "iwyu_path_util.h"
+#include "iwyu_port.h"  // for CHECK_
+#include "iwyu_preprocessor.h"
+#include "iwyu_stl_util.h"
+#include "iwyu_string_util.h"
+#include "iwyu_use_flags.h"
+#include "iwyu_verrs.h"
+#include "llvm/Support/Casting.h"
+#include "llvm/Support/raw_ostream.h"
 #include "clang/AST/ASTConsumer.h"
 #include "clang/AST/ASTContext.h"
 #include "clang/AST/Attr.h"
