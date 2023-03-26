@@ -217,8 +217,6 @@ using clang::DeclContext;
 using clang::DeclRefExpr;
 using clang::DecltypeType;
 using clang::DeducedTemplateSpecializationType;
-using clang::ElaboratedType;
-using clang::ElaboratedTypeKeyword;
 using clang::ElaboratedTypeLoc;
 using clang::EnumConstantDecl;
 using clang::EnumDecl;
@@ -4604,91 +4602,13 @@ class IwyuAstConsumer
     return Base::VisitTemplateSpecializationType(type);
   }
 
-  bool VisitObjCContainerDecl(clang::ObjCContainerDecl* decl) {
-    if (CanIgnoreCurrentASTNode()) return true;
-
-    if (IsForwardDecl(decl)) {
+  bool VisitElaboratedTypeLoc(ElaboratedTypeLoc type_loc) {
+    if (type_loc.getTypePtr()->getKeyword() != clang::ETK_None) {
       preprocessor_info()
           .FileInfoFor(CurrentFileEntry())
-          ->AddForwardDeclare(decl, false);
-      return Base::VisitObjCContainerDecl(decl);
+          ->AddElaboratedType(type_loc);
     }
-
-    return Base::VisitObjCContainerDecl(decl);
-  }
-
-  bool VisitObjCInterfaceDecl(clang::ObjCInterfaceDecl* decl) {
-    if (CanIgnoreCurrentASTNode()) return true;
-
-    if (decl->isThisDeclarationADefinition()) {
-      if (const ObjCInterfaceDecl* super_class = decl->getSuperClass())
-        ReportDeclUse(CurrentLoc(), super_class);
-
-      ReportDeclsUse(CurrentLoc(), decl->getReferencedProtocols());
-    }
-
-    return Base::VisitObjCInterfaceDecl(decl);
-  }
-
-  bool VisitObjCObjectPointerType(clang::ObjCObjectPointerType* type) {
-    if (CanIgnoreCurrentASTNode()) return true;
-    const bool full_use = !type->getTypeArgs().empty();
-
-    for (const auto* qual : type->quals()) {
-      ReportDeclForwardDeclareUse(CurrentLoc(), qual);
-    }
-
-    // id<...> does not have an interface
-    if (const ObjCInterfaceDecl* iface = type->getInterfaceDecl()) {
-      if (full_use) {
-        ReportDeclUse(CurrentLoc(), iface);
-      } else {
-        ReportDeclForwardDeclareUse(CurrentLoc(), iface);
-      }
-    }
-
-    return Base::VisitObjCObjectPointerType(type);
-  }
-
-  bool VisitObjCImplDecl(clang::ObjCImplDecl* decl) {
-    if (CanIgnoreCurrentASTNode()) return true;
-    ReportDeclUse(CurrentLoc(), decl->getClassInterface());
-    return Base::VisitObjCImplDecl(decl);
-  }
-
-  bool VisitObjCProtocolDecl(clang::ObjCProtocolDecl* decl) {
-    if (CanIgnoreCurrentASTNode()) return true;
-
-    if (decl->isThisDeclarationADefinition())
-      ReportDeclsUse(CurrentLoc(), decl->getReferencedProtocols());
-
-    return Base::VisitObjCProtocolDecl(decl);
-  }
-
-  bool VisitObjCMessageExpr(clang::ObjCMessageExpr* expr) {
-    if (CanIgnoreCurrentASTNode()) return true;
-    ReportDeclUse(CurrentLoc(), expr->getReceiverInterface());
-    ReportDeclUse(CurrentLoc(), expr->getMethodDecl());
-    return Base::VisitObjCMessageExpr(expr);
-  }
-
-  bool VisitObjCIvarRefExpr(clang::ObjCIvarRefExpr* expr) {
-    if (CanIgnoreCurrentASTNode()) return true;
-    ReportDeclUse(CurrentLoc(), expr->getDecl());
-    return Base::VisitObjCIvarRefExpr(expr);
-  }
-
-  bool VisitObjCCategoryDecl(clang::ObjCCategoryDecl* decl) {
-    if (CanIgnoreCurrentASTNode()) return true;
-    ReportDeclUse(CurrentLoc(), decl->getClassInterface());
-    ReportDeclsUse(CurrentLoc(), decl->getReferencedProtocols());
-    return Base::VisitObjCCategoryDecl(decl);
-  }
-
-  bool VisitObjCCategoryImplDecl(clang::ObjCCategoryImplDecl* decl) {
-    if (CanIgnoreCurrentASTNode()) return true;
-    ReportDeclUse(CurrentLoc(), decl->getCategoryDecl());
-    return Base::VisitObjCCategoryImplDecl(decl);
+    return Base::VisitElaboratedTypeLoc(type_loc);
   }
 
   // --- Visitors defined by BaseASTVisitor (not RecursiveASTVisitor).

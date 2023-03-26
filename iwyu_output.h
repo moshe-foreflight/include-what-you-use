@@ -35,6 +35,7 @@
 namespace clang {
 class ElaboratedTypeLoc;
 class UsingDecl;
+class ElaboratedTypeLoc;
 }  // namespace clang
 
 namespace include_what_you_use {
@@ -146,6 +147,7 @@ class OneUse {
 class OneIncludeOrForwardDeclareLine {
  public:
   explicit OneIncludeOrForwardDeclareLine(const clang::NamedDecl* fwd_decl);
+  explicit OneIncludeOrForwardDeclareLine(clang::ElaboratedTypeLoc);
   OneIncludeOrForwardDeclareLine(const clang::FileEntry* included_file,
                                  const string& quoted_include, int linenum,
                                  clang::InclusionDirective::InclusionKind kind);
@@ -160,6 +162,9 @@ class OneIncludeOrForwardDeclareLine {
   }
   bool is_present() const {
     return is_present_;
+  }
+  bool is_elaborated_type() const {
+    return is_elaborated_type_;
   }
   const map<string, int>& symbol_counts() const {
     return symbol_counts_;
@@ -209,9 +214,10 @@ class OneIncludeOrForwardDeclareLine {
   string line_;  // '#include XXX' or 'class YYY;'
   int start_linenum_ = -1;
   int end_linenum_ = -1;
-  bool is_desired_ = false;         // IWYU will recommend this line
-  bool is_present_ = false;         // line was present before the IWYU run
-  map<string, int> symbol_counts_;  // how many times we referenced each symbol
+  bool is_desired_ = false;          // IWYU will recommend this line
+  bool is_present_ = false;          // line was present before the IWYU run
+  bool is_elaborated_type_ = false;  // Fwd-decl introduced by elaborated type
+  map<string, int> symbol_counts_;   // how many times we referenced each symbol
   // Only either two following members are set for includes
   string quoted_include_;  // quoted file name we're including
   const clang::FileEntry* included_file_ = nullptr;  // the file we're including

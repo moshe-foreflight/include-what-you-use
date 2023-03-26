@@ -55,7 +55,6 @@ using clang::ClassTemplateDecl;
 using clang::ClassTemplateSpecializationDecl;
 using clang::Decl;
 using clang::DeclContext;
-using clang::DeclarationName;
 using clang::ElaboratedTypeLoc;
 using clang::EnumDecl;
 using clang::FunctionDecl;
@@ -552,9 +551,19 @@ OneIncludeOrForwardDeclareLine::OneIncludeOrForwardDeclareLine(
 }
 
 OneIncludeOrForwardDeclareLine::OneIncludeOrForwardDeclareLine(
-    const FileEntry* included_file, const string& quoted_include, int linenum,
-    InclusionDirective::InclusionKind kind)
-    : line_(internal::GetInclusionKindAsString(kind) + " " + quoted_include),
+    ElaboratedTypeLoc type_loc)
+    : is_desired_(true),
+      is_present_(true),
+      is_elaborated_type_(true),
+      fwd_decl_(type_loc.getTypePtr()->getOwnedTagDecl()) {
+  const SourceRange decl_lines = type_loc.getLocalSourceRange();
+  start_linenum_ = GetLineNumber(GetInstantiationLoc(decl_lines.getBegin()));
+  end_linenum_ = GetLineNumber(GetInstantiationLoc(decl_lines.getEnd()));
+}
+
+OneIncludeOrForwardDeclareLine::OneIncludeOrForwardDeclareLine(
+    const FileEntry* included_file, const string& quoted_include, int linenum)
+    : line_("#include " + quoted_include),
       start_linenum_(linenum),
       end_linenum_(linenum),
       quoted_include_(quoted_include),
