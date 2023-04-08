@@ -209,13 +209,12 @@ class OneIncludeOrForwardDeclareLine {
   string line_;  // '#include XXX' or 'class YYY;'
   int start_linenum_ = -1;
   int end_linenum_ = -1;
-  bool is_desired_ = false;          // IWYU will recommend this line
-  bool is_present_ = false;          // line was present before the IWYU run
-  bool is_elaborated_type_ = false;  // Fwd-decl introduced by elaborated type
-  map<string, int> symbol_counts_;   // how many times we referenced each symbol
+  bool is_desired_ = false;         // IWYU will recommend this line
+  bool is_present_ = false;         // line was present before the IWYU run
+  map<string, int> symbol_counts_;  // how many times we referenced each symbol
   // Only either two following members are set for includes
   string quoted_include_;  // quoted file name we're including
-  clang::OptionalFileEntryRef included_file_;  // the file we're including
+  const clang::FileEntry* included_file_ = nullptr;  // the file we're including
   // ...or this member is set for the fwd-decl we're emitting.
   const clang::NamedDecl* fwd_decl_ = nullptr;
 };
