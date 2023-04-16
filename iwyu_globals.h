@@ -19,6 +19,7 @@
 #include "clang/Basic/FileEntry.h"
 
 namespace clang {
+class CompilerInstance;
 class FileEntry;
 class FileID;
 class HeaderSearch;
@@ -67,8 +68,8 @@ class OptionsParser {
   const char** clang_argv_;
 };
 
-void InitGlobals(clang::CompilerInstance& compiler,
-                 const clang::driver::ToolChain& toolchain);
+void InitGlobals(clang::SourceManager* sm, clang::HeaderSearch* header_search);
+void InitGlobals(clang::CompilerInstance& compiler);
 
 // Can be called by tests -- doesn't need a SourceManager or
 // argc/argv.  Note that GlobalSourceManager() and DefaultDataGetter()

@@ -4847,9 +4847,8 @@ class IwyuAction : public ASTFrontendAction {
   std::unique_ptr<ASTConsumer> CreateASTConsumer(
       CompilerInstance& compiler,  // NOLINT
       llvm::StringRef /* dummy */) override {
-    // Do this first thing after getting our hands on initialized
-    // CompilerInstance and ToolChain objects.
-    InitGlobals(compiler, toolchain);
+    // Do this first thing after getting our hands on a CompilerInstance.
+    InitGlobals(compiler);
 
     Preprocessor& preprocessor = compiler.getPreprocessor();
     auto* const preprocessor_consumer = new IwyuPreprocessorInfo(preprocessor);

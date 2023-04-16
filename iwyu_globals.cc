@@ -40,8 +40,13 @@
 #include "iwyu_string_util.h"
 #include "iwyu_verrs.h"
 #include "iwyu_version.h"
-#include "llvm/ADT/StringRef.h"
-#include "llvm/Option/ArgList.h"
+#include "llvm/Support/raw_ostream.h"
+#include "clang/AST/PrettyPrinter.h"
+#include "clang/Basic/FileManager.h"
+#include "clang/Basic/Version.h"
+#include "clang/Frontend/CompilerInstance.h"
+#include "clang/Lex/HeaderSearch.h"
+#include "clang/Lex/Preprocessor.h"
 
 // TODO: Clean out pragmas as IWYU improves.
 // IWYU pragma: no_include <unistd.h>
@@ -443,40 +448,30 @@ static vector<HeaderSearchPath> ComputeHeaderSearchPaths(
   return NormalizeHeaderSearchPaths(search_path_map);
 }
 
-static CStdLib DeriveCStdLib() {
+static CStdLib DeriveCStdLib(clang::CompilerInstance&) {
   if (GlobalFlags().no_default_mappings)
     return CStdLib::None;
-  if (GlobalFlags().HasExperimentalFlag("clang_mappings"))
-    return CStdLib::ClangSymbols;
   return CStdLib::Glibc;
 }
 
-static CXXStdLib DeriveCXXStdLib(const ToolChain& toolchain) {
+static CXXStdLib DeriveCXXStdLib(clang::CompilerInstance&) {
   if (GlobalFlags().no_default_mappings)
     return CXXStdLib::None;
-  if (GlobalFlags().HasExperimentalFlag("clang_mappings"))
-    return CXXStdLib::ClangSymbols;
-
-  // Get standard library requested for the compilation. ToolChain caches the
-  // already-parsed args, so pass in an empty arglist.
-  llvm::opt::InputArgList nullargs;
-  switch (toolchain.GetCXXStdlibType(nullargs)) {
-    case ToolChain::CXXStdlibType::CST_Libcxx:
-      return CXXStdLib::Libcxx;
-    case ToolChain::CXXStdlibType::CST_Libstdcxx:
-      return CXXStdLib::Libstdcxx;
-  }
-  CHECK_UNREACHABLE_("covered switch for CXXStdlibType above");
+  return CXXStdLib::Libstdcxx;
 }
 
-void InitGlobals(CompilerInstance& compiler, const ToolChain& toolchain) {
+void InitGlobals(clang::CompilerInstance& compiler) {
   source_manager = &compiler.getSourceManager();
   data_getter = new SourceManagerCharacterDataGetter(*source_manager);
   vector<HeaderSearchPath> search_paths = ComputeHeaderSearchPaths(
       &compiler.getPreprocessor().getHeaderSearchInfo());
   SetHeaderSearchPaths(search_paths);
-  include_picker = new IncludePicker(GlobalFlags().no_default_mappings,
-                                     GlobalFlags().regex_dialect);
+
+  RegexDialect regex_dialect = GlobalFlags().regex_dialect;
+  CStdLib cstdlib = DeriveCStdLib(compiler);
+  CXXStdLib cxxstdlib = DeriveCXXStdLib(compiler);
+  include_picker = new IncludePicker(regex_dialect, cstdlib, cxxstdlib);
+
   function_calls_full_use_cache = new FullUseCache;
   class_members_full_use_cache = new FullUseCache;
 
