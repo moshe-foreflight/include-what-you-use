@@ -21,6 +21,7 @@
 #include <utility>
 #include <vector>
 
+#include "iwyu_globals.h"
 #include "llvm/ADT/SmallString.h"
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/Triple.h"
@@ -273,11 +274,23 @@ bool ExecuteAction(int argc, const char** argv,
   // recognize. We need to extend the driver library to support this use model
   // (basically, exactly one input, and the operation mode is hard wired).
 
-  // Add -fsyntax-only to avoid code generation, unless user asked for
-  // preprocessing-only.
-  if (!HasPreprocessOnlyArgs(args)) {
-    args.push_back("-fsyntax-only");
-    args.push_back("-Qunused-arguments");
+  unique_ptr<Compilation> compilation(driver.BuildCompilation(args));
+  if (!compilation)
+    return nullptr;
+
+  ParseToolChain(compilation->getDefaultToolChain());
+
+  // FIXME: This is copied from ASTUnit.cpp; simplify and eliminate.
+
+  // We expect to get back exactly one command job, if we didn't something
+  // failed. Extract that job from the compilation.
+  const JobList& jobs = compilation->getJobs();
+  if (jobs.size() != 1 || !isa<Command>(*jobs.begin())) {
+    SmallString<256> msg;
+    raw_svector_ostream out(msg);
+    jobs.Print(out, "; ", true);
+    diagnostics.Report(clang::diag::err_fe_expected_compiler_job) << out.str();
+    return nullptr;
   }
 
   // Build a compilation, get the job list and filter out irrelevant jobs.
