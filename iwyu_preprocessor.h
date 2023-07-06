@@ -370,12 +370,9 @@ class IwyuPreprocessorInfo : public clang::PPCallbacks,
   // location corresponds to.
   clang::SourceLocation include_filename_loc_;
 
-  // Kind of current inclusion statement, e.g. #include, #import. Distinguish
-  // between different inclusion kinds only to report correctly added/removed
-  // lines. Inclusion kind doesn't affect IWYU logic.
-  // Need an instance variable because different callbacks are used to handle
-  // inclusion directive and to handle included file.
-  clang::InclusionDirective::InclusionKind current_inclusion_kind_;
+  // Keeps track of which files have the "always_keep" pragma, so they can be
+  // marked as such for all includers.
+  std::set<const clang::FileEntry*> always_keep_files_;
 };
 
 }  // namespace include_what_you_use
