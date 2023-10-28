@@ -126,7 +126,6 @@ def RunTestFile(cc_file):
   for failure, 77 if the test was skipped. If the test failed, an
   exception will have been raised (causing a non-zero exit code).
   """
-  xfail = iwyu_test_util.IsTestExpectedToFail(cc_file)
   try:
     TestIwyuOnRelevantFiles(cc_file)
   except unittest.SkipTest as e:
@@ -135,17 +134,8 @@ def RunTestFile(cc_file):
     # skipped. It's an almost-convention to use exit code 77, and some build
     # systems natively report such failures as skipped, see e.g.
     # https://mesonbuild.com/Unit-tests.html#skipped-tests-and-hard-errors
-    print('Skipped %s: %s' % (cc_file, e))
+    print('Skipped %s: %s' % (runner_args.run_test_file, e))
     return 77
-  except AssertionError as e:
-    if xfail:
-      print('%s: Expected failure' % cc_file)
-      return 0
-    raise
-  else:
-    if xfail:
-      print('%s: Unexpected pass' % cc_file)
-      return 1
   return 0
 
 
