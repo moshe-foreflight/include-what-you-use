@@ -66,6 +66,9 @@
 #include <string>                       // for string
 #include <vector>                       // for vector
 
+#include "iwyu_output.h"
+#include "iwyu_port.h"  // for CHECK_
+
 #include "clang/Basic/FileEntry.h"
 #include "clang/Basic/SourceLocation.h"
 #include "clang/Basic/SourceManager.h"
@@ -77,7 +80,6 @@
 #include "llvm/ADT/StringRef.h"
 
 namespace clang {
-class FileEntry;
 class MacroInfo;
 class NamedDecl;
 }  // namespace clang

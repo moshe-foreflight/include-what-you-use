@@ -20,8 +20,6 @@
 
 namespace clang {
 class CompilerInstance;
-class FileEntry;
-class FileID;
 class HeaderSearch;
 class Module;
 class SourceLocation;

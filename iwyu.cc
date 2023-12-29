@@ -130,9 +130,7 @@
 #include "clang/AST/TemplateName.h"
 #include "clang/AST/Type.h"
 #include "clang/AST/TypeLoc.h"
-#include "clang/Basic/Diagnostic.h"
 #include "clang/Basic/FileEntry.h"
-#include "clang/Basic/LangOptions.h"
 #include "clang/Basic/SourceLocation.h"
 #include "clang/Basic/SourceManager.h"
 #include "clang/Basic/Specifiers.h"
@@ -173,8 +171,7 @@ class PPCallbacks;
 // IWYU pragma: end_keep
 
 namespace clang {
-class FriendDecl;
-class Stmt;
+class PPCallbacks;
 
 namespace driver {
 class ToolChain;

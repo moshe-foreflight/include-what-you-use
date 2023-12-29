@@ -29,11 +29,11 @@
 #include "iwyu_stl_util.h"
 #include "iwyu_use_flags.h"
 #include "clang/AST/Decl.h"
+#include "clang/Basic/FileEntry.h"
 #include "clang/Basic/SourceLocation.h"
 #include "clang/Lex/PreprocessingRecord.h"
 
 namespace clang {
-class ElaboratedTypeLoc;
 class UsingDecl;
 class ElaboratedTypeLoc;
 }  // namespace clang

@@ -36,7 +36,6 @@
 #include "clang/AST/TypeLoc.h"
 #include "clang/Basic/Builtins.h"
 #include "clang/Basic/FileEntry.h"
-#include "clang/Basic/IdentifierTable.h"
 #include "clang/Basic/SourceLocation.h"
 #include "clang/Basic/SourceManager.h"
 #include "clang/Basic/Specifiers.h"
@@ -50,10 +49,6 @@
 #include "llvm/ADT/PointerUnion.h"
 #include "llvm/ADT/StringRef.h"
 #include "llvm/Support/Casting.h"
-
-// TODO: Clean out pragmas as IWYU improves.
-// IWYU pragma: no_include "clang/AST/StmtIterator.h"
-// IWYU pragma: no_include "clang/Basic/CustomizableOptional.h"
 
 using clang::ASTDumper;
 using clang::ArrayType;
