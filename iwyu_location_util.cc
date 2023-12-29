@@ -37,7 +37,6 @@ using clang::Decl;
 using clang::FileID;
 using clang::FunctionDecl;
 using clang::MemberExpr;
-using clang::NestedNameSpecifierLoc;
 using clang::OptionalFileEntryRef;
 using clang::SourceLocation;
 using clang::SourceManager;
@@ -127,7 +126,7 @@ static SourceLocation GetMemberExprLocation(const MemberExpr* member_expr) {
   // so, we say the whole member-expr is part of that macro.
   // Otherwise, we just say the member-expr is in the file where the
   // member and base macros are called.
-  if (GetFileEntry(member_start) == GetFileEntry(base_end) &&
+  if (GetFileEntryRef(member_start) == GetFileEntryRef(base_end) &&
       GetLineNumber(member_start) == GetLineNumber(base_end)) {
     return member_start;
   }
@@ -190,14 +189,21 @@ bool IsInScratchSpace(SourceLocation loc) {
   return StartsWith(PrintableLoc(GetSpellingLoc(loc)), "<scratch space>");
 }
 
-bool IsInHeader(const Decl* decl) {
-  OptionalFileEntryRef containing_file = GetFileEntry(decl);
+bool IsInHeader(const clang::Decl* decl) {
+  OptionalFileEntryRef containing_file = GetFileEntryRef(decl);
   if (!containing_file) {
     // This is a builtin, or something is terribly wrong.
     // At any rate, we're not in a header.
     return false;
   }
   return !GlobalSourceManager()->isMainFile(containing_file->getFileEntry());
+}
+
+bool IsSystemHeader(const clang::FileEntry* file) {
+  const SourceManager* sm = GlobalSourceManager();
+  FileID file_id = sm->translateFile(*file);
+  SourceLocation loc = sm->getLocForStartOfFile(file_id);
+  return sm->isInSystemHeader(loc);
 }
 
 bool IsSystemHeader(OptionalFileEntryRef file) {
