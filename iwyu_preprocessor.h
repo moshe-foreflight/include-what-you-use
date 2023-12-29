@@ -96,8 +96,7 @@ using std::multimap;
 class IwyuPreprocessorInfo : public clang::PPCallbacks,
                              public clang::CommentHandler {
  public:
-  IwyuPreprocessorInfo() : main_file_(nullptr) {
-  }
+  IwyuPreprocessorInfo() = default;
 
   // The client *must* call this from the beginning of HandleTranslationUnit()
   void HandlePreprocessingDone();
@@ -124,7 +123,7 @@ class IwyuPreprocessorInfo : public clang::PPCallbacks,
   // to the given file, or nullptr if no such struct can be found.
   // Note this is a const method that returns a non-const pointer.
   // Be careful if using this method in threaded contexts.
-  IwyuFileInfo* FileInfoFor(const clang::FileEntry* file) const;
+  IwyuFileInfo* FileInfoFor(clang::OptionalFileEntryRef file) const;
 
   // For every file we've seen (that is, that we've #included),
   // returns what files it 'intends' to provide full type information
@@ -258,9 +257,8 @@ class IwyuPreprocessorInfo : public clang::PPCallbacks,
 
   // Called whenever an #include is seen in the preprocessor output.
   void AddDirectInclude(clang::SourceLocation includer_loc,
-                        const clang::FileEntry* includee,
-                        const string& include_name_as_written,
-                        clang::InclusionDirective::InclusionKind kind);
+                        clang::OptionalFileEntryRef includee,
+                        const string& include_name_as_written);
 
   // Determine if the comment is a pragma, and if so, process it.
   void HandlePragmaComment(clang::SourceRange comment_range);
@@ -289,9 +287,6 @@ class IwyuPreprocessorInfo : public clang::PPCallbacks,
   // there is a pending "begin_keep" pragma.
   bool HasOpenBeginKeep(clang::OptionalFileEntryRef file) const;
 
-  // The Clang preprocessor for this compilation.
-  const clang::Preprocessor& preprocessor_;
-
   // The C++ source file passed in as an argument to the compiler (as
   // opposed to other files seen via #includes).
   clang::OptionalFileEntryRef main_file_;
@@ -301,6 +296,17 @@ class IwyuPreprocessorInfo : public clang::PPCallbacks,
   // main_file_ and its associated .h and -inl.h files, if they exist.
   // But users can add to it via the --check_also flag.
   set<clang::OptionalFileEntryRef> files_to_report_iwyu_violations_for_;
+
+  // These store macros seen, as we see them, and also macros that are
+  // called from other macros.  We use this to do limited iwyu-testing
+  // on macro tokens (we'd love to test macro bodies more completely
+  // -- like we do template bodies -- but macros don't give us enough
+  // context to know how to interpret the tokens we see, in general).
+  map<string, clang::SourceLocation> macros_definition_loc_;  // key: macro name
+
+  // This should logically be a set, but set<> needs Token::operator<
+  // which we don't have.  Luckily, a vector works just as well.
+  vector<clang::Token> macros_called_from_macros_;
 
   // This maps from the include-name as written in the program
   // (including <>'s or ""'s) to the FileEntry we loaded for that
@@ -336,7 +342,7 @@ class IwyuPreprocessorInfo : public clang::PPCallbacks,
   // Maps from a FileEntry to the qualified names of symbols that its
   // file is directed *not* to forward-declare via the
   // "no_forward_declare" pragma.
-  map<const clang::FileEntry*, set<string>> no_forward_declare_map_;
+  map<clang::OptionalFileEntryRef, set<string>> no_forward_declare_map_;
 
   // For processing pragmas. It is the current stack of open
   // "begin_exports".  There should be at most one item in this stack
@@ -371,7 +377,7 @@ class IwyuPreprocessorInfo : public clang::PPCallbacks,
 
   // Keeps track of which files have the "always_keep" pragma, so they can be
   // marked as such for all includers.
-  std::set<const clang::FileEntry*> always_keep_files_;
+  std::set<clang::OptionalFileEntryRef> always_keep_files_;
 };
 
 }  // namespace include_what_you_use

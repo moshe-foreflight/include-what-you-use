@@ -180,19 +180,7 @@ class IncludePicker {
   bool HasMapping(const string& map_from_filepath,
                   const string& map_to_filepath) const;
 
-  // ----- Inclusion kind API
-
-  // Returns true if iwyu encountered quoted_include and knows its inclusion
-  // kind. Iwyu assumes that encountered inclusion kind is the correct one, it
-  // doesn't fix inclusion directives.
-  bool HasInclusionKind(const string& quoted_include) const;
-
-  // Returns inclusion kind for quoted include. You should not call this method
-  // if inclusion kind is unknown (check beforehand with HasInclusionKind).
-  clang::InclusionDirective::InclusionKind GetInclusionKindForInclude(
-      const string& quoted_include) const;
-
-  bool IsPublic(const clang::FileEntry* file) const;
+  bool IsPublic(clang::OptionalFileEntryRef file) const;
 
   // Parses a YAML/JSON file containing mapping directives of various types.
   void AddMappingsFromFile(const string& filename);

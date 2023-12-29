@@ -60,11 +60,13 @@ class OneUse {
          UseKind use_kind,
          UseFlags flags,
          const char* comment);
-
-  // This constructor is used to track macro uses and abstract symbol uses (such
-  // as placement operator new, which requires <new>).
+  // Both dfn_file and dfn_filepath are specified to allow to create OneUse
+  // with dfn_filepath and without dfn_file.  For example, in
+  // IwyuBaseAstVisitor::VisitCXXNewExpr we make a guess that placement
+  // operator new is called (which is defined in <new>), but we don't have
+  // <new> FileEntry.
   OneUse(const string& symbol_name, clang::OptionalFileEntryRef dfn_file,
-         clang::SourceLocation use_loc);
+         const string& dfn_filepath, clang::SourceLocation use_loc);
 
   const string& symbol_name() const {
     return symbol_name_;
@@ -75,7 +77,7 @@ class OneUse {
   const clang::NamedDecl* decl() const {
     return decl_;
   }
-  const clang::FileEntry* decl_file() const {
+  clang::OptionalFileEntryRef decl_file() const {
     return decl_file_;
   }
   const string& decl_filepath() const {
@@ -148,9 +150,8 @@ class OneIncludeOrForwardDeclareLine {
  public:
   explicit OneIncludeOrForwardDeclareLine(const clang::NamedDecl* fwd_decl);
   explicit OneIncludeOrForwardDeclareLine(clang::ElaboratedTypeLoc);
-  OneIncludeOrForwardDeclareLine(const clang::FileEntry* included_file,
-                                 const string& quoted_include, int linenum,
-                                 clang::InclusionDirective::InclusionKind kind);
+  OneIncludeOrForwardDeclareLine(clang::OptionalFileEntryRef included_file,
+                                 const string& quoted_include, int linenum);
 
   const string& line() const {
     return line_;
@@ -220,7 +221,7 @@ class OneIncludeOrForwardDeclareLine {
   map<string, int> symbol_counts_;   // how many times we referenced each symbol
   // Only either two following members are set for includes
   string quoted_include_;  // quoted file name we're including
-  const clang::FileEntry* included_file_ = nullptr;  // the file we're including
+  clang::OptionalFileEntryRef included_file_;  // the file we're including
   // ...or this member is set for the fwd-decl we're emitting.
   const clang::NamedDecl* fwd_decl_ = nullptr;
 };
@@ -269,9 +270,8 @@ class IwyuFileInfo {
   // Use these to register an iwyu declaration: either an #include,
   // a forward-declaration or a using-declaration.
 
-  void AddInclude(const clang::FileEntry* includee,
-                  const string& quoted_includee, int linenumber,
-                  clang::InclusionDirective::InclusionKind kind);
+  void AddInclude(clang::OptionalFileEntryRef includee,
+                  const string& quoted_includee, int linenumber);
   // definitely_keep_fwd_decl tells us that we should never suggest
   // the fwd-decl be removed, even if we don't see any uses of it.
   void AddForwardDeclare(const clang::NamedDecl* fwd_decl,

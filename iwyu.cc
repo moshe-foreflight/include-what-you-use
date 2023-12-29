@@ -232,12 +232,7 @@ using clang::NamedDecl;
 using clang::NamespaceAliasDecl;
 using clang::NestedNameSpecifier;
 using clang::NestedNameSpecifierLoc;
-using clang::ObjCInterfaceDecl;
-using clang::ObjCInterfaceType;
-using clang::ObjCObjectType;
-using clang::ObjCCategoryDecl;
-using clang::ObjCContainerDecl;
-using clang::ObjCProtocolDecl;
+using clang::OptionalFileEntryRef;
 using clang::OverloadExpr;
 using clang::ParmVarDecl;
 using clang::PPCallbacks;
@@ -302,9 +297,9 @@ bool CanIgnoreLocation(SourceLocation loc) {
   // since that's what the compiler does.  CanIgnoreCurrentASTNode()
   // is an optimization, so we want to be conservative about what we
   // ignore.
-  OptionalFileEntryRef file_entry = GetFileEntry(loc);
+  OptionalFileEntryRef file_entry = GetFileEntryRef(loc);
   OptionalFileEntryRef file_entry_after_macro_expansion =
-      GetFileEntry(GetInstantiationLoc(loc));
+      GetFileEntryRef(GetInstantiationLoc(loc));
 
   // ignore symbols used outside foo.{h,cc} + check_also
   return (!ShouldReportIWYUViolationsFor(file_entry) &&
@@ -565,7 +560,7 @@ class BaseAstVisitor : public RecursiveASTVisitor<Derived> {
   }
 
   OptionalFileEntryRef CurrentFileEntry() const {
-    return GetFileEntry(CurrentLoc());
+    return GetFileEntryRef(CurrentLoc());
   }
 
   string PrintableCurrentLoc() const {
@@ -1336,12 +1331,12 @@ class IwyuBaseAstVisitor : public BaseAstVisitor<Derived> {
     // If the file defining the macro contains a forward decl, keep it around
     // and treat it as a hint that the expansion loc is responsible for the
     // symbol.
-    OptionalFileEntryRef macro_def_file = GetLocFileEntry(spelling_loc);
+    OptionalFileEntryRef macro_def_file = GetLocFileEntryRef(spelling_loc);
     VERRS(5) << "Macro is defined in '" << GetFilePath(macro_def_file) << "'\n";
 
     const NamedDecl* fwd_decl = nullptr;
     for (const NamedDecl* redecl : GetTagRedecls(decl)) {
-      if (GetFileEntry(redecl) == macro_def_file && IsForwardDecl(redecl)) {
+      if (GetFileEntryRef(redecl) == macro_def_file && IsForwardDecl(redecl)) {
         VERRS(5) << "Found fwd-decl hint at "
                  << PrintableLoc(GetLocation(redecl)) << "\n";
         fwd_decl = redecl;
@@ -1355,7 +1350,7 @@ class IwyuBaseAstVisitor : public BaseAstVisitor<Derived> {
                 func_decl->getPrimaryTemplate()) {
           VERRS(5) << "No fwd-decl found, looking for function template decl\n";
           for (const NamedDecl* redecl : ft_decl->redecls()) {
-            if (GetFileEntry(redecl) == macro_def_file) {
+            if (GetFileEntryRef(redecl) == macro_def_file) {
               VERRS(5) << "Found function template at "
                        << PrintableLoc(GetLocation(redecl)) << "\n";
               fwd_decl = redecl;
@@ -1470,11 +1465,8 @@ class IwyuBaseAstVisitor : public BaseAstVisitor<Derived> {
     if (const NamedDecl* dfn = GetTagDefinition(decl)) {
       if (IsBeforeInSameFile(dfn, use_loc))
         return false;
-      const IwyuFileInfo* use_file =
-          preprocessor_info().FileInfoFor(GetFileEntry(use_loc));
-      if (!use_file)  // Not sure whether this is possible.
-        return true;
-      if (IsDirectlyIncluded(dfn, *use_file))
+      if (preprocessor_info().PublicHeaderIntendsToProvide(
+              GetFileEntryRef(use_loc), GetFileEntryRef(dfn))) {
         return false;
     }
 
@@ -1574,7 +1566,7 @@ class IwyuBaseAstVisitor : public BaseAstVisitor<Derived> {
          fn_redecl != fn_decl->redecls_end(); ++fn_redecl) {
       // Ignore function-decls that we can't see from the use-location.
       if (!preprocessor_info().FileTransitivelyIncludes(
-              GetFileEntry(call_expr), GetFileEntry(*fn_redecl))) {
+              GetFileEntryRef(call_expr), GetFileEntryRef(*fn_redecl))) {
         continue;
       }
       if (fn_redecl->isThisDeclarationADefinition() && !IsInHeader(*fn_redecl))
@@ -1623,7 +1615,7 @@ class IwyuBaseAstVisitor : public BaseAstVisitor<Derived> {
 
     // Canonicalize the use location and report the use.
     used_loc = GetCanonicalUseLocation(used_loc, target_decl);
-    OptionalFileEntryRef used_in = GetFileEntry(used_loc);
+    OptionalFileEntryRef used_in = GetFileEntryRef(used_loc);
 
     preprocessor_info().FileInfoFor(used_in)->ReportFullSymbolUse(
         used_loc, target_decl, use_flags, comment);
@@ -1696,7 +1688,7 @@ class IwyuBaseAstVisitor : public BaseAstVisitor<Derived> {
 
     // Canonicalize the use location and report the use.
     used_loc = GetCanonicalUseLocation(used_loc, target_decl);
-    OptionalFileEntryRef used_in = GetFileEntry(used_loc);
+    OptionalFileEntryRef used_in = GetFileEntryRef(used_loc);
     preprocessor_info().FileInfoFor(used_in)->ReportForwardDeclareUse(
         used_loc, target_decl, use_flags, comment);
 
@@ -2385,22 +2377,11 @@ class IwyuBaseAstVisitor : public BaseAstVisitor<Derived> {
       return true;
     }
     const NamedDecl* first_decl = *expr->decls_begin();
-    OptionalFileEntryRef first_decl_file_entry = GetFileEntry(first_decl);
-    OptionalFileEntryRef current_file_entry = GetFileEntry(CurrentLoc());
-    const IwyuFileInfo* current_file_info =
-        preprocessor_info().FileInfoFor(current_file_entry);
-    if (!current_file_info)
-      return true;
-    vector<const NamedDecl*> directly_included;
-    bool same_file = true;
-    for (const NamedDecl* decl : expr->decls()) {
-      // TODO(bolshakov): filter overloads suitable by number and type
-      // of parameters. Take into account default arguments, ellipsis, explicit
-      // template arguments, and pack expansions. See
-      // clang::Sema::AddOverloadedCallCandidates for guidance.
-      if (IsDirectlyIncluded(decl, *current_file_info))
-        directly_included.push_back(decl);
-      same_file &= GetFileEntry(decl) == first_decl_file_entry;
+    OptionalFileEntryRef first_decl_file_entry = GetFileEntryRef(first_decl);
+    for (OverloadExpr::decls_iterator it = expr->decls_begin();
+         it != expr->decls_end(); ++it) {
+      if (GetFileEntryRef(*it) != first_decl_file_entry)
+        return true;
     }
 
     if (!same_file) {
@@ -2503,6 +2484,7 @@ class IwyuBaseAstVisitor : public BaseAstVisitor<Derived> {
         // parse it to '<new>' before using, so any path that does
         // that, and is clearly a c++ path, is fine; its exact
         // contents don't matter that much.
+        using clang::OptionalFileEntryRef;
         OptionalFileEntryRef use_file = CurrentFileEntry();
         OptionalFileEntryRef file = compiler()->getPreprocessor().LookupFile(
             CurrentLoc(), "new", true, nullptr, RawFileEntry(use_file), nullptr,
@@ -3261,7 +3243,7 @@ class InstantiatedTemplateVisitor
     const SourceLocation actual_used_loc = GetLocOfTemplateThatProvides(decl);
     // Report use only if template doesn't itself provide the declaration.
     if (!actual_used_loc.isValid() ||
-        GetFileEntry(actual_used_loc) == GetFileEntry(caller_loc())) {
+        GetFileEntryRef(actual_used_loc) == GetFileEntryRef(caller_loc())) {
       // Let all the currently active types and decls know about this
       // report, so they can update their cache entries.
       for (CacheStoringScope* storer : cache_storers_)
@@ -3598,7 +3580,8 @@ class InstantiatedTemplateVisitor
 
     // If there is a redecl in the same file, prefer that.
     for (const CXXRecordDecl* redecl : explicit_inst_decls) {
-      if (GetFileEntry(redecl->getLocation()) == GetFileEntry(caller_loc())) {
+      if (GetFileEntryRef(redecl->getLocation()) ==
+          GetFileEntryRef(caller_loc())) {
         VERRS(6) << "Found explicit instantiation declaration or definition in "
                     "same file\n";
         Base::ReportDeclUse(caller_loc(), redecl,
@@ -3704,8 +3687,8 @@ class InstantiatedTemplateVisitor
     for (const ASTNode* ast_node = current_ast_node();
          ast_node != caller_ast_node_; ast_node = ast_node->parent()) {
       if (preprocessor_info().PublicHeaderIntendsToProvide(
-              GetFileEntry(ast_node->GetLocation()),
-              GetFileEntry(decl->getLocation())))
+              GetFileEntryRef(ast_node->GetLocation()),
+              GetFileEntryRef(decl->getLocation())))
         return ast_node->GetLocation();
     }
     return SourceLocation();   // an invalid source-loc
@@ -3962,7 +3945,7 @@ class InstantiatedTemplateVisitor
       } else {
         const NamedDecl* resugared_decl = TypeToDeclAsWritten(item.first);
         if (!preprocessor_info().PublicHeaderIntendsToProvide(
-                GetFileEntry(tpl_decl), GetFileEntry(resugared_decl)))
+                GetFileEntryRef(tpl_decl), GetFileEntryRef(resugared_decl)))
           resugared_type = item.first;
       }
       if (resugared_type && !resugared_type->isPointerType()) {
@@ -4110,7 +4093,7 @@ class IwyuAstConsumer
     if (compiler()->getDiagnostics().hasUnrecoverableErrorOccurred())
       exit(EXIT_FAILURE);
 
-    const set<const FileEntry*>* const files_to_report_iwyu_violations_for =
+    const set<OptionalFileEntryRef>* const files_to_report_iwyu_violations_for =
         preprocessor_info().files_to_report_iwyu_violations_for();
 
     // Some analysis, such as UsingDecl resolution, is deferred until the

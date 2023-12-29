@@ -81,6 +81,7 @@ using clang::EnumType;
 using clang::ExplicitCastExpr;
 using clang::Expr;
 using clang::ExprWithCleanups;
+using clang::FullSourceLoc;
 using clang::FunctionDecl;
 using clang::FunctionTemplateDecl;
 using clang::FunctionTemplateSpecializationInfo;
@@ -95,11 +96,7 @@ using clang::NamedDecl;
 using clang::NamespaceDecl;
 using clang::NestedNameSpecifier;
 using clang::ObjCObjectType;
-using clang::ObjCObjectPointerType;
-using clang::ObjCInterfaceDecl;
-using clang::ObjCProtocolDecl;
-using clang::ObjCCategoryDecl;
-using clang::ObjCContainerDecl;
+using clang::OptionalFileEntryRef;
 using clang::OverloadExpr;
 using clang::PointerType;
 using clang::PrintingPolicy;
@@ -226,11 +223,12 @@ SourceLocation ASTNode::GetLocation() const {
   // locations are in a different file, then we're uncertain of our
   // own location.  Return an invalid location.
   if (retval.isValid()) {
-    SourceManager& sm = *GlobalSourceManager();
+    clang::SourceManager& sm = *GlobalSourceManager();
+    FullSourceLoc full_loc(retval, sm);
     OptionalFileEntryRef spelling_file =
-        sm.getFileEntryRefForID(sm.getFileID(sm.getSpellingLoc(retval)));
+        sm.getFileEntryRefForID(sm.getFileID(full_loc.getSpellingLoc()));
     OptionalFileEntryRef instantiation_file =
-        sm.getFileEntryRefForID(sm.getFileID(sm.getExpansionLoc(retval)));
+        sm.getFileEntryRefForID(sm.getFileID(full_loc.getExpansionLoc()));
     if (spelling_file != instantiation_file)
       return SourceLocation();
   }
