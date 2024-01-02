@@ -50,6 +50,7 @@
 #include "llvm/ADT/StringRef.h"
 #include "llvm/Support/Casting.h"
 
+using clang::ArrayType;
 using clang::ASTDumper;
 using clang::ArrayType;
 using clang::BlockPointerType;
@@ -223,7 +224,7 @@ SourceLocation ASTNode::GetLocation() const {
   // locations are in a different file, then we're uncertain of our
   // own location.  Return an invalid location.
   if (retval.isValid()) {
-    clang::SourceManager& sm = *GlobalSourceManager();
+    SourceManager& sm = *GlobalSourceManager();
     FullSourceLoc full_loc(retval, sm);
     OptionalFileEntryRef spelling_file =
         sm.getFileEntryRefForID(sm.getFileID(full_loc.getSpellingLoc()));
@@ -1154,6 +1155,17 @@ bool IsInInlineNamespace(const Decl* decl) {
   return false;
 }
 
+bool IsInNamespace(const NamedDecl* decl, const NamespaceDecl* ns_decl) {
+  const DeclContext* primary_ns_context = ns_decl->getPrimaryContext();
+  for (const DeclContext* dc = decl->getDeclContext(); dc;
+       dc = dc->getParent()) {
+    if (dc->getPrimaryContext() == primary_ns_context)
+      return true;
+  }
+
+  return false;
+}
+
 bool IsForwardDecl(const NamedDecl* decl) {
   if (const auto* tag_decl = dyn_cast<TagDecl>(decl)) {
     // clang-format off
@@ -1211,7 +1223,7 @@ inline set<const NamedDecl*> GetRedeclsOfRedeclarable(
 // The only way to find out whether a decl can be dyn_cast to a
 // Redeclarable<T> and what T is is to enumerate the possibilities.
 // Hence we hard-code the list.
-set<const clang::NamedDecl*> GetNonTagRedecls(const clang::NamedDecl* decl) {
+set<const NamedDecl*> GetNonTagRedecls(const NamedDecl* decl) {
   CHECK_(!isa<TagDecl>(decl) && "For tag types, call GetTagRedecls()");
   CHECK_(!isa<ClassTemplateDecl>(decl) && "For tpls, call GetTagRedecls()");
   // TODO(wan): go through iwyu to replace TypedefDecl with
@@ -1621,23 +1633,7 @@ TemplateInstantiationData GetTplInstDataForClass(
       result.provided_types};
 }
 
-TemplateInstantiationData GetTplInstDataForClass(
-    ArrayRef<TemplateArgument> written_tpl_args,
-    const ClassTemplateSpecializationDecl* cls_tpl_decl,
-    function<set<const Type*>(const Type*)> provided_getter) {
-  TemplateInstantiationData result = GetTplInstDataForClassNoComponentTypes(
-      written_tpl_args, cls_tpl_decl, provided_getter);
-  return TemplateInstantiationData{
-      ResugarTypeComponents(
-          result.resugar_map),  // add in the decomposition of retval
-      result.provided_types};
-}
-
 bool CanBeOpaqueDeclared(const EnumType* type) {
-  return type->getDecl()->isFixed();
-}
-
-bool CanBeOpaqueDeclared(const clang::EnumType* type) {
   return type->getDecl()->isFixed();
 }
 

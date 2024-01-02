@@ -36,14 +36,15 @@
 #include "clang/Basic/TokenKinds.h"
 #include "clang/Lex/MacroInfo.h"
 
+using clang::CharSourceRange;
 using clang::FileEntryRef;
 using clang::FileID;
-using clang::IdentifierInfo;
 using clang::MacroArgs;
 using clang::MacroDefinition;
 using clang::MacroDirective;
 using clang::InclusionDirective;
 using clang::MacroInfo;
+using clang::Module;
 using clang::NamedDecl;
 using clang::OptionalFileEntryRef;
 using clang::Preprocessor;
@@ -664,7 +665,7 @@ void IwyuPreprocessorInfo::AddDirectInclude(
 void IwyuPreprocessorInfo::MacroExpands(const Token& macro_use_token,
                                         const MacroDefinition& definition,
                                         SourceRange range,
-                                        const clang::MacroArgs* /*args*/) {
+                                        const MacroArgs* /*args*/) {
   OptionalFileEntryRef macro_file = GetFileEntry(macro_use_token);
   const MacroInfo* macro_def = definition.getMacroInfo();
   if (ShouldPrintSymbolFromFile(macro_file)) {
@@ -740,17 +741,11 @@ void IwyuPreprocessorInfo::Defined(const Token& id,
   FindAndReportMacroUse(GetName(id), id.getLocation());
 }
 
-void IwyuPreprocessorInfo::InclusionDirective(SourceLocation hash_loc,
-                                              const Token& include_token,
-                                              StringRef filename,
-                                              bool is_angled,
-                                              CharSourceRange filename_range,
-                                              OptionalFileEntryRef file,
-                                              StringRef search_path,
-                                              StringRef relative_path,
-                                              const Module* suggested_module,
-                                              bool module_imported,
-                                              CharacteristicKind file_type) {
+void IwyuPreprocessorInfo::InclusionDirective(
+    SourceLocation hash_loc, const Token& include_token, StringRef filename,
+    bool is_angled, CharSourceRange filename_range, OptionalFileEntryRef file,
+    StringRef search_path, StringRef relative_path, const Module* imported,
+    CharacteristicKind file_type) {
   include_filename_loc_ = filename_range.getBegin();
 
   if (imported)
@@ -1159,15 +1154,14 @@ bool IwyuPreprocessorInfo::FileTransitivelyIncludes(
 }
 
 bool IwyuPreprocessorInfo::IncludeIsInhibited(
-    clang::OptionalFileEntryRef file, const string& other_filename) const {
+    OptionalFileEntryRef file, const string& other_filename) const {
   const set<string>* inhibited_includes = FindInMap(&no_include_map_, file);
   return (inhibited_includes != nullptr) &&
       ContainsKey(*inhibited_includes, other_filename);
 }
 
 bool IwyuPreprocessorInfo::ForwardDeclareIsInhibited(
-    clang::OptionalFileEntryRef file,
-    const string& qualified_symbol_name) const {
+    OptionalFileEntryRef file, const string& qualified_symbol_name) const {
   const string normalized_symbol_name =
       NormalizeNamespaces(qualified_symbol_name);
   const set<string>* inhibited_forward_declares =

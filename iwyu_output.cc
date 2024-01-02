@@ -50,11 +50,12 @@
 namespace include_what_you_use {
 
 using clang::BuiltinTemplateDecl;
-using clang::CXXRecordDecl;
 using clang::ClassTemplateDecl;
 using clang::ClassTemplateSpecializationDecl;
+using clang::CXXRecordDecl;
 using clang::Decl;
 using clang::DeclContext;
+using clang::DeclarationName;
 using clang::ElaboratedTypeLoc;
 using clang::EnumDecl;
 using clang::FunctionDecl;
@@ -166,7 +167,7 @@ const FakeNamedDecl* FakeNamedDeclIfItIsOne(const NamedDecl* decl) {
 }
 
 std::string PrintableUnderlyingType(const EnumDecl* enum_decl) {
-  if (const clang::TypeSourceInfo* type_source_info =
+  if (const TypeSourceInfo* type_source_info =
           enum_decl->getIntegerTypeSourceInfo()) {
     return " : " + type_source_info->getType().getAsString(
                        enum_decl->getASTContext().getPrintingPolicy());
@@ -194,7 +195,7 @@ FakeNamedDecl::FakeNamedDecl(const string& kind_name, const string& qual_name,
 // call ourselves.
 
 string GetKindName(const TagDecl* tag_decl) {
-  const clang::NamedDecl* const named_decl = tag_decl;
+  const NamedDecl* const named_decl = tag_decl;
   if (const FakeNamedDecl* fake = FakeNamedDeclIfItIsOne(named_decl)) {
     return fake->kind_name();
   }
@@ -325,12 +326,28 @@ OneUse::OneUse(const string& symbol_name, OptionalFileEntryRef dfn_file,
       << "OneUse: dfn_file must have a real name, was: " << decl_filepath_;
 }
 
-void OneUse::reset_decl(const clang::NamedDecl* decl) {
-    CHECK_(decl_ && "Need existing decl to reset it");
-    CHECK_(decl && "Need to reset decl with existing decl");
-    decl_ = decl;
-    decl_file_ = GetFileEntry(decl);
-    decl_filepath_ = GetFilePath(decl);
+OneUse::OneUse(OptionalFileEntryRef included_file, const string& quoted_include)
+    : symbol_name_(),
+      short_symbol_name_(),
+      decl_(nullptr),
+      decl_file_(included_file),
+      decl_filepath_(quoted_include),
+      use_loc_(SourceLocation()),
+      use_kind_(kFullUse),
+      use_flags_(UF_None),
+      ignore_use_(false),
+      is_iwyu_violation_(false) {
+  CHECK_(IsQuotedInclude(decl_filepath_))
+      << "OneUse: bad quoted_include: " << quoted_include;
+  suggested_header_ = decl_filepath_;
+}
+
+void OneUse::reset_decl(const NamedDecl* decl) {
+  CHECK_(decl_ && "Need existing decl to reset it");
+  CHECK_(decl && "Need to reset decl with existing decl");
+  decl_ = decl;
+  decl_file_ = GetFileEntry(decl);
+  decl_filepath_ = GetFilePath(decl);
 }
 
 int OneUse::UseLinenum() const {
@@ -577,7 +594,7 @@ string OneIncludeOrForwardDeclareLine::LineNumberString() const {
   return buf;
 }
 
-IwyuFileInfo::IwyuFileInfo(clang::OptionalFileEntryRef this_file,
+IwyuFileInfo::IwyuFileInfo(OptionalFileEntryRef this_file,
                            const IwyuPreprocessorInfo* preprocessor_info,
                            const string& quoted_include_name)
     : file_(this_file),
@@ -594,7 +611,7 @@ void IwyuFileInfo::AddAssociatedHeader(const IwyuFileInfo* other) {
   associated_headers_.insert(other);
 }
 
-void IwyuFileInfo::AddInclude(clang::OptionalFileEntryRef includee,
+void IwyuFileInfo::AddInclude(OptionalFileEntryRef includee,
                               const string& quoted_includee, int linenumber) {
   OneIncludeOrForwardDeclareLine new_include(includee, quoted_includee,
                                              linenumber, kind);
@@ -716,14 +733,13 @@ void IwyuFileInfo::ReportMacroUse(SourceLocation use_loc,
   LogSymbolUse("Marked full-info use of macro", symbol_uses_.back());
 }
 
-void IwyuFileInfo::ReportDefinedMacroUse(clang::OptionalFileEntryRef used_in) {
+void IwyuFileInfo::ReportDefinedMacroUse(OptionalFileEntryRef used_in) {
   macro_users_.insert(used_in);
 }
 
-void IwyuFileInfo::ReportIncludeFileUse(
-    clang::OptionalFileEntryRef included_file, const string& quoted_include) {
-  symbol_uses_.push_back(OneUse("", included_file, quoted_include,
-                                SourceLocation()));
+void IwyuFileInfo::ReportIncludeFileUse(OptionalFileEntryRef included_file,
+                                        const string& quoted_include) {
+  symbol_uses_.push_back(OneUse(included_file, quoted_include));
   LogSymbolUse("Marked use of include-file", symbol_uses_.back());
 }
 

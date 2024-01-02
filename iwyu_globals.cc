@@ -49,8 +49,15 @@
 #include "clang/Lex/HeaderSearch.h"
 #include "clang/Lex/Preprocessor.h"
 
+using clang::CompilerInstance;
+using clang::HeaderSearch;
+using clang::LangOptions;
+using clang::OptionalDirectoryEntryRef;
+using clang::OptionalFileEntryRef;
+using clang::PrintingPolicy;
+using clang::SourceManager;
 using clang::driver::ToolChain;
-using clang::DirectoryEntry;
+using clang::getClangFullVersion;
 using std::make_pair;
 using std::map;
 using std::string;
@@ -59,9 +66,7 @@ using std::vector;
 namespace include_what_you_use {
 
 static CommandlineFlags* commandline_flags = nullptr;
-static clang::SourceManager* source_manager = nullptr;
-static ToolChain::CXXStdlibType cxx_stdlib_type =
-    ToolChain::CXXStdlibType::CST_Libstdcxx;
+static SourceManager* source_manager = nullptr;
 static IncludePicker* include_picker = nullptr;
 static const LangOptions default_lang_options;
 static const PrintingPolicy default_print_policy(default_lang_options);
@@ -146,22 +151,6 @@ static void PrintVersion() {
     llvm::outs() << " (git:" << iwyu_rev << ")";
   }
   llvm::outs() << " based on " << getClangFullVersion() << "\n";
-}
-
-static bool ParseIntegerOptarg(const char* optarg, int* res) {
-  char* endptr = nullptr;
-  long val = strtol(optarg, &endptr, 10);
-  if (!endptr || endptr == optarg)
-    return false;
-
-  if (*endptr != '\0')
-    return false;
-
-  if (val > INT_MAX || val < INT_MIN)
-    return false;
-
-  *res = (int)val;
-  return true;
 }
 
 static bool ParseIntegerOptarg(const char* optarg, int* res) {
@@ -454,15 +443,7 @@ static CXXStdLib DeriveCXXStdLib(clang::CompilerInstance&) {
   return CXXStdLib::Libstdcxx;
 }
 
-void ParseToolChain(const clang::driver::ToolChain& tc) {
-  // Get standard library that has been requested. Get this from the
-  // ToolChain. This should already have been parsed, so pass in an
-  // empty arglist.
-  llvm::opt::InputArgList nullargs;
-  cxx_stdlib_type = tc.GetCXXStdlibType(nullargs);
-}
-
-void InitGlobals(clang::CompilerInstance& compiler) {
+void InitGlobals(CompilerInstance& compiler, const ToolChain& toolchain) {
   source_manager = &compiler.getSourceManager();
   data_getter = new SourceManagerCharacterDataGetter(*source_manager);
   vector<HeaderSearchPath> search_paths = ComputeHeaderSearchPaths(
@@ -566,7 +547,7 @@ void AddGlobToReportIWYUViolationsFor(const string& glob) {
   commandline_flags->check_also.insert(NormalizeFilePath(glob));
 }
 
-bool ShouldReportIWYUViolationsFor(clang::OptionalFileEntryRef file) {
+bool ShouldReportIWYUViolationsFor(OptionalFileEntryRef file) {
   const string filepath = GetFilePath(file);
   for (const string& glob : GlobalFlags().check_also)
     if (GlobMatchesPath(glob.c_str(), filepath.c_str()))
@@ -579,7 +560,7 @@ void AddGlobToKeepIncludes(const string& glob) {
   commandline_flags->keep.insert(NormalizeFilePath(glob));
 }
 
-bool ShouldKeepIncludeFor(clang::OptionalFileEntryRef file) {
+bool ShouldKeepIncludeFor(OptionalFileEntryRef file) {
   if (GlobalFlags().keep.empty())
     return false;
   const string filepath = GetFilePath(file);
