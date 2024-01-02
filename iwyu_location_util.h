@@ -45,8 +45,6 @@
 #include <optional>
 #include <string>                       // for string
 
-#include "iwyu_globals.h"
-#include "iwyu_path_util.h"
 #include "clang/Basic/FileEntry.h"
 #include "clang/Basic/FileManager.h"
 #include "clang/Basic/SourceLocation.h"
@@ -54,9 +52,6 @@
 #include "clang/Lex/Token.h"
 #include "iwyu_globals.h"
 #include "iwyu_path_util.h"
-#include "llvm/ADT/StringRef.h"
-
-#include "llvm/Support/Compiler.h"
 
 namespace clang {
 class Decl;

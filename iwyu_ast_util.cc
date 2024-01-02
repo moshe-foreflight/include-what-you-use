@@ -46,9 +46,8 @@
 #include "iwyu_stl_util.h"
 #include "iwyu_verrs.h"
 #include "llvm/ADT/ArrayRef.h"
-#include "llvm/ADT/PointerUnion.h"
-#include "llvm/ADT/StringRef.h"
 #include "llvm/Support/Casting.h"
+#include "llvm/Support/raw_ostream.h"
 
 using clang::ASTDumper;
 using clang::ArrayType;

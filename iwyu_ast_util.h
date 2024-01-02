@@ -17,6 +17,7 @@
 #include <set>                          // for set
 #include <string>                       // for string
 
+#include "clang/AST/DeclBase.h"
 #include "clang/AST/NestedNameSpecifier.h"
 #include "clang/AST/TemplateBase.h"
 #include "clang/AST/Type.h"

@@ -20,6 +20,7 @@
 #include <utility>                      // for pair, make_pair
 #include <vector>                       // for vector, vector<>::iterator
 
+#include "clang/Basic/FileManager.h"
 #include "clang/Tooling/Inclusions/StandardLibrary.h"
 #include "iwyu_location_util.h"
 #include "iwyu_path_util.h"

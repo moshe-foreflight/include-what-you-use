@@ -66,18 +66,14 @@
 #include <string>                       // for string
 #include <vector>                       // for vector
 
-#include "iwyu_output.h"
-#include "iwyu_port.h"  // for CHECK_
-
 #include "clang/Basic/FileEntry.h"
 #include "clang/Basic/SourceLocation.h"
 #include "clang/Basic/SourceManager.h"
-#include "clang/Lex/Preprocessor.h"
-#include "clang/Lex/PreprocessingRecord.h"
 #include "clang/Lex/PPCallbacks.h"
 #include "clang/Lex/Preprocessor.h"
+#include "clang/Lex/Token.h"
 #include "iwyu_output.h"
-#include "llvm/ADT/StringRef.h"
+#include "iwyu_port.h"  // for CHECK_
 
 namespace clang {
 class MacroInfo;

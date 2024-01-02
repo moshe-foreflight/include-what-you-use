@@ -20,12 +20,8 @@
 #include "clang/AST/TemplateBase.h"
 #include "clang/AST/TypeLoc.h"
 #include "clang/Basic/SourceLocation.h"
-#include "clang/Basic/Specifiers.h"
 #include "iwyu_ast_util.h"
-#include "iwyu_string_util.h"
-
-// TODO: Clean out pragmas as IWYU improves.
-// IWYU pragma: no_include "clang/Basic/CustomizableOptional.h"
+#include "iwyu_port.h"
 
 using clang::BinaryOperator;
 using clang::CXXDependentScopeMemberExpr;

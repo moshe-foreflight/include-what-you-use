@@ -11,13 +11,11 @@
 
 #include <cstring>
 #include <regex>
-#include "llvm/Support/Regex.h"
 
 #include "iwyu_port.h"
 
 #include "iwyu_port.h"
 #include "iwyu_string_util.h"
-#include "llvm/ADT/StringRef.h"
 #include "llvm/Support/Regex.h"
 
 namespace include_what_you_use {
