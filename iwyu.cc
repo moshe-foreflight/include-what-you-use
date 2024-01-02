@@ -182,7 +182,6 @@ namespace include_what_you_use {
 
 // I occasionally clean up this list by running:
 // $ grep "using clang":: iwyu.cc | cut -b14- | tr -d ";" | while read t; do grep -q "[^:]$t" iwyu.cc || echo $t; done
-using clang::ArraySubscriptExpr;
 using clang::ASTConsumer;
 using clang::ASTContext;
 using clang::ASTFrontendAction;
@@ -191,12 +190,12 @@ using clang::Attr;
 using clang::BinaryOperator;
 using clang::CXXBaseSpecifier;
 using clang::CXXCatchStmt;
-using clang::CXXForRangeStmt;
 using clang::CXXConstructExpr;
 using clang::CXXConstructorDecl;
 using clang::CXXDefaultArgExpr;
 using clang::CXXDeleteExpr;
 using clang::CXXDestructorDecl;
+using clang::CXXForRangeStmt;
 using clang::CXXMemberCallExpr;
 using clang::CXXMethodDecl;
 using clang::CXXNewExpr;
@@ -234,7 +233,6 @@ using clang::NestedNameSpecifier;
 using clang::NestedNameSpecifierLoc;
 using clang::OptionalFileEntryRef;
 using clang::OverloadExpr;
-using clang::ParmVarDecl;
 using clang::PPCallbacks;
 using clang::ParmVarDecl;
 using clang::PointerType;
@@ -245,7 +243,6 @@ using clang::RecordDecl;
 using clang::RecursiveASTVisitor;
 using clang::ReferenceType;
 using clang::Sema;
-using clang::SourceManager;
 using clang::SourceLocation;
 using clang::SourceManager;
 using clang::Stmt;
@@ -270,7 +267,6 @@ using clang::TypeTraitExpr;
 using clang::TypedefDecl;
 using clang::TypedefNameDecl;
 using clang::TypedefType;
-using clang::TypeSourceInfo;
 using clang::UnaryExprOrTypeTraitExpr;
 using clang::UnresolvedLookupExpr;
 using clang::UsingDecl;

@@ -50,7 +50,6 @@
 #include "llvm/ADT/StringRef.h"
 #include "llvm/Support/Casting.h"
 
-using clang::ArrayType;
 using clang::ASTDumper;
 using clang::ArrayType;
 using clang::BlockPointerType;

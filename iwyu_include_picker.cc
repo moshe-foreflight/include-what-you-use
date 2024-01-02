@@ -41,9 +41,6 @@
 #include "llvm/Support/SourceMgr.h"
 #include "llvm/Support/YAMLParser.h"
 
-// TODO: Clean out pragmas as IWYU improves.
-// IWYU pragma: no_include <iterator>
-
 using clang::OptionalFileEntryRef;
 using llvm::MemoryBuffer;
 using llvm::SourceMgr;
@@ -54,7 +51,13 @@ using llvm::yaml::ScalarNode;
 using llvm::yaml::SequenceNode;
 using llvm::yaml::Stream;
 using llvm::yaml::document_iterator;
-using clang::InclusionDirective;
+using std::find;
+using std::make_pair;
+using std::map;
+using std::pair;
+using std::string;
+using std::unique_ptr;
+using std::vector;
 
 namespace include_what_you_use {
 
