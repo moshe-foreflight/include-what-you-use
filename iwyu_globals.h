@@ -20,11 +20,9 @@
 
 namespace clang {
 class CompilerInstance;
-class HeaderSearch;
-class Module;
-class SourceLocation;
 class SourceManager;
 struct PrintingPolicy;
+
 namespace driver {
 class ToolChain;
 }  // namespace driver
@@ -37,7 +35,6 @@ using std::map;
 using std::string;
 using std::vector;
 
-enum class RegexDialect;
 class FullUseCache;
 class IncludePicker;
 class SourceManagerCharacterDataGetter;

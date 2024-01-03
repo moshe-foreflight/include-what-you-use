@@ -21,8 +21,7 @@
 #include <utility>
 #include <vector>
 
-#include "iwyu_verrs.h"
-
+#include "clang/Basic/Diagnostic.h"
 #include "clang/Basic/DiagnosticFrontend.h"
 #include "clang/Basic/DiagnosticOptions.h"
 #include "clang/Driver/Action.h"
@@ -35,15 +34,18 @@
 #include "clang/Frontend/FrontendAction.h"
 #include "clang/Frontend/FrontendOptions.h"
 #include "clang/FrontendTool/Utils.h"
+#include "clang/Lex/HeaderSearchOptions.h"
+#include "iwyu_verrs.h"
 #include "llvm/ADT/ArrayRef.h"
+#include "llvm/ADT/IntrusiveRefCntPtr.h"
 #include "llvm/ADT/STLExtras.h"
-#include "llvm/ADT/SmallString.h"
-#include "llvm/Option/ArgList.h"
+#include "llvm/ADT/SmallVector.h"
+#include "llvm/ADT/StringRef.h"
+#include "llvm/Option/Option.h"
 #include "llvm/Support/ErrorOr.h"
 #include "llvm/Support/FileSystem.h"
 #include "llvm/Support/MemoryBuffer.h"
 #include "llvm/TargetParser/Host.h"
-#include "llvm/TargetParser/Triple.h"
 
 namespace include_what_you_use {
 

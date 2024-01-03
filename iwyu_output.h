@@ -16,7 +16,7 @@
 #ifndef INCLUDE_WHAT_YOU_USE_IWYU_OUTPUT_H_
 #define INCLUDE_WHAT_YOU_USE_IWYU_OUTPUT_H_
 
-#include <cstddef>
+#include <stddef.h>
 #include <map>                          // for map
 #include <set>                          // for set
 #include <string>                       // for string, operator<
@@ -30,8 +30,8 @@
 #include "iwyu_use_flags.h"
 
 namespace clang {
-class UsingDecl;
 class ElaboratedTypeLoc;
+class UsingDecl;
 }  // namespace clang
 
 namespace include_what_you_use {

@@ -9,13 +9,14 @@
 
 #include "iwyu_regex.h"
 
-#include <cstring>
+#include <string.h>
 #include <regex>
 
 #include "iwyu_port.h"
 
 #include "iwyu_port.h"
 #include "iwyu_string_util.h"
+#include "llvm/ADT/StringRef.h"
 #include "llvm/Support/Regex.h"
 
 namespace include_what_you_use {

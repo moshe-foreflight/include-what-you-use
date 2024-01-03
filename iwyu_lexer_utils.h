@@ -13,8 +13,6 @@
 #include <string>                       // for string
 
 #include "clang/Basic/SourceLocation.h"
-#include "clang/Basic/TokenKinds.h"
-#include "clang/Lex/MacroInfo.h"
 #include "llvm/ADT/StringRef.h"
 
 namespace clang {

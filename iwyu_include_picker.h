@@ -44,7 +44,7 @@
 #ifndef INCLUDE_WHAT_YOU_USE_IWYU_INCLUDE_PICKER_H_
 #define INCLUDE_WHAT_YOU_USE_IWYU_INCLUDE_PICKER_H_
 
-#include <cstddef>
+#include <stddef.h>
 #include <map>                          // for map, map<>::value_compare
 #include <set>                          // for set
 #include <string>                       // for string
@@ -65,7 +65,6 @@ using std::vector;
 enum class RegexDialect;
 struct IncludeMapEntry;
 
-enum class RegexDialect;
 enum IncludeVisibility { kUnusedVisibility, kPublic, kPrivate };
 enum class CStdLib { None, ClangSymbols, Glibc };
 enum class CXXStdLib { None, ClangSymbols, Libstdcxx, Libcxx };

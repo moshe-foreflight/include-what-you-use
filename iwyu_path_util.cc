@@ -12,8 +12,8 @@
 #include <cstring>                      // for strlen
 #include <system_error>
 
-#include "iwyu_stl_util.h"
-#include "llvm/ADT/STLExtras.h"
+#include "iwyu_port.h"
+#include "iwyu_string_util.h"
 #include "llvm/ADT/SmallString.h"
 #include "llvm/ADT/StringRef.h"
 #include "llvm/Support/FileSystem.h"

@@ -87,7 +87,7 @@
 //     already get it via foo.h, IWYU won't recommend foo.cc to
 //     #include bar.h, unless it already does so.
 
-#include <cstdio>
+#include <stdio.h>
 #include <cstdlib>                      // for atoi, exit
 #include <functional>
 #include <map>                          // for map, swap, etc
@@ -97,21 +97,6 @@
 #include <utility>                      // for pair
 #include <vector>                       // for vector, swap
 
-#include "iwyu_ast_util.h"
-#include "iwyu_cache.h"
-#include "iwyu_globals.h"
-#include "iwyu_lexer_utils.h"
-#include "iwyu_location_util.h"
-#include "iwyu_output.h"
-#include "iwyu_path_util.h"
-#include "iwyu_port.h"  // for CHECK_
-#include "iwyu_preprocessor.h"
-#include "iwyu_stl_util.h"
-#include "iwyu_string_util.h"
-#include "iwyu_use_flags.h"
-#include "iwyu_verrs.h"
-#include "llvm/Support/Casting.h"
-#include "llvm/Support/raw_ostream.h"
 #include "clang/AST/ASTConsumer.h"
 #include "clang/AST/ASTContext.h"
 #include "clang/AST/Attr.h"
@@ -130,18 +115,21 @@
 #include "clang/AST/TemplateName.h"
 #include "clang/AST/Type.h"
 #include "clang/AST/TypeLoc.h"
+#include "clang/Basic/Diagnostic.h"
 #include "clang/Basic/FileEntry.h"
+#include "clang/Basic/LangOptions.h"
 #include "clang/Basic/SourceLocation.h"
 #include "clang/Basic/SourceManager.h"
 #include "clang/Basic/Specifiers.h"
 #include "clang/Basic/TypeTraits.h"
 #include "clang/Frontend/CompilerInstance.h"
+#include "clang/Frontend/CompilerInvocation.h"
 #include "clang/Frontend/FrontendAction.h"
 #include "clang/Lex/Preprocessor.h"
+#include "clang/Lex/PreprocessorOptions.h"
 #include "clang/Sema/Sema.h"
 #include "iwyu_ast_util.h"
 #include "iwyu_cache.h"
-#include "iwyu_driver.h"
 #include "iwyu_globals.h"
 #include "iwyu_location_util.h"
 #include "iwyu_output.h"
@@ -152,7 +140,6 @@
 #include "iwyu_verrs.h"
 #include "llvm/ADT/ArrayRef.h"
 #include "llvm/ADT/StringRef.h"
-#include "llvm/ADT/iterator_range.h"
 #include "llvm/Support/Casting.h"
 #include "llvm/Support/ManagedStatic.h"
 #include "llvm/Support/TargetSelect.h"
@@ -171,7 +158,8 @@ class PPCallbacks;
 // IWYU pragma: end_keep
 
 namespace clang {
-class PPCallbacks;
+class FriendDecl;
+class Stmt;
 
 namespace driver {
 class ToolChain;

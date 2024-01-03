@@ -73,10 +73,13 @@
 #include "clang/Lex/Preprocessor.h"
 #include "clang/Lex/Token.h"
 #include "iwyu_output.h"
-#include "iwyu_port.h"  // for CHECK_
+#include "llvm/ADT/StringRef.h"
 
 namespace clang {
-class MacroInfo;
+class MacroArgs;
+class MacroDefinition;
+class MacroDirective;
+class Module;
 class NamedDecl;
 }  // namespace clang
 
