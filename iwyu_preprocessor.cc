@@ -450,7 +450,7 @@ void IwyuPreprocessorInfo::MaybeProtectInclude(
     SourceLocation includer_loc, OptionalFileEntryRef includee,
     const string& include_name_as_written) {
   OptionalFileEntryRef includer = GetFileEntry(includer_loc);
-  if (IsBuiltinOrCommandLineFile(includer))
+  if (IsSpecialFile(includer))
     return;
 
   string protect_reason;
@@ -560,7 +560,7 @@ void IwyuPreprocessorInfo::FinalizeProtectedIncludes() {
 void IwyuPreprocessorInfo::AddDirectInclude(
     SourceLocation includer_loc, OptionalFileEntryRef includee,
     const string& include_name_as_written) {
-  if (IsBuiltinOrCommandLineFile(includee))
+  if (IsSpecialFile(includee))
     return;
 
   // For files we're going to be reporting IWYU errors for, we need
@@ -821,7 +821,7 @@ void IwyuPreprocessorInfo::FileChanged_EnterFile(
   const SourceLocation include_loc = GlobalSourceManager()->getIncludeLoc(
       GlobalSourceManager()->getFileID(file_beginning));
   string include_name_as_written;
-  if (!IsBuiltinOrCommandLineFile(GetFileEntry(include_loc))) {
+  if (!IsInSpecialFile(include_loc)) {
     CHECK_(include_filename_loc_.isValid() &&
            "Include from not built-in file must have inclusion directive");
     include_name_as_written = GetIncludeNameAsWritten(include_filename_loc_);

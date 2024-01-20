@@ -15,6 +15,8 @@
 #include <string>                       // for string, allocator, etc
 #include <vector>
 
+#include "llvm/ADT/StringRef.h"
+
 namespace include_what_you_use {
 
 using std::string;
@@ -89,8 +91,8 @@ bool IsSystemIncludeFile(const string& filepath);
 // Returns true if argument is one of the special filenames used by Clang for
 // implicit buffers ("<built-in>", "<command-line>", etc).
 inline bool IsSpecialFilename(llvm::StringRef name) {
-  return (name == "<built-in>" || name == "<command line>" ||
-          name == "<scratch space>" || name == "<inline asm>");
+  return (name.equals("<built-in>") || name.equals("<command line>") ||
+          name.equals("<scratch space>") || name.equals("<inline asm>"));
 }
 
 }  // namespace include_what_you_use

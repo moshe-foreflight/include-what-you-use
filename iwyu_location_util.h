@@ -75,33 +75,6 @@ inline const clang::FileEntry* RawFileEntry(clang::OptionalFileEntryRef file) {
   return &file->getFileEntry();
 }
 
-// Some symbols are directly defined by the compiler.  For them, the
-// definition location points to the "<built-in>" file.
-inline bool IsBuiltinFile(const clang::FileEntry* file) {
-  return file == nullptr;
-}
-
-inline bool IsBuiltinFile(clang::OptionalFileEntryRef file) {
-  return !file;
-}
-
-// There are two kinds of symbols that are not defined in the source
-// files: the compiler can define some standard symbols
-// (e.g. __FILE__), and the user can define macros on the command line
-// of the compiler using -D.  A symbol appears to be defined in file
-// "<built-in>" in the first case, and "<command line>" in the second.
-// IsBuiltinOrCommandLineFile(file) returns true if it's either of the
-// two cases.
-LLVM_SUPPRESS_DEPRECATED_DECLARATIONS_PUSH
-inline bool IsBuiltinOrCommandLineFile(const clang::FileEntry* file) {
-  return IsBuiltinFile(file) || file->getName().equals("<command line>");
-}
-LLVM_SUPPRESS_DEPRECATED_DECLARATIONS_POP
-
-inline bool IsBuiltinOrCommandLineFile(clang::OptionalFileEntryRef file) {
-  return IsBuiltinFile(file) || file->getName().equals("<command line>");
-}
-
 // When macro args are concatenated e.g. '#define CAT(A, B) A##B', their
 // location ends up outside the source text, in what the compiler calls
 // "<scratch space>".
@@ -117,8 +90,7 @@ inline string GetFilePath(const clang::FileEntry* file) {
 LLVM_SUPPRESS_DEPRECATED_DECLARATIONS_POP
 
 inline string GetFilePath(clang::OptionalFileEntryRef file) {
-  return (IsBuiltinFile(file) ? "<built-in>"
-                              : NormalizeFilePath(file->getName().str()));
+  return (!file ? "<built-in>" : NormalizeFilePath(file->getName().str()));
 }
 
 inline string GetFilePath(clang::FileEntryRef file) {
